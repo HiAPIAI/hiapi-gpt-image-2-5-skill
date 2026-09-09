@@ -23,7 +23,7 @@ This checklist improves relevance and installation clarity; it does not guarante
 1. Verify raw README, `SKILL.md`, `llms.txt`, asset URLs, default branch, and any directory submission/telemetry separately.
 2. Test supported Agent Skills clients individually; do not convert documentation into client acceptance.
 3. Keep model availability, skill publication, directory inclusion, crawling/indexing, and ranking as separate states. `skills.sh` listing and Google indexing have not been verified.
-4. The central directory update is merged in [PR #9](https://github.com/HiAPIAI/hiapi-skills/pull/9) at `9d290daef67c97e566d67b323b0f99ee7298a235`, and the prompt library update is merged in [PR #1](https://github.com/HiAPIAI/awesome-gpt-image-2-prompts/pull/1) at `cf91ba4bdcf4fa9a51fbfa52f4dab07aeabe3c4`; both default-branch contents were read back and verified. The prompt library's pre-existing LICENSE baseline check remains failed and was not changed in this release.
+4. The central directory update is merged in [PR #9](https://github.com/HiAPIAI/hiapi-skills/pull/9) at `9d290daef67c97e566d67b323b0f99ee7298a235`, and the prompt library update is merged in [PR #1](https://github.com/HiAPIAI/awesome-gpt-image-2-prompts/pull/1) at `dcf91ba4bdcf4fa9a51fbfa52f4dab07aeabe3c4`; both default-branch contents were read back and verified. The prompt library's pre-existing LICENSE baseline check remains failed and was not changed in this release.
 
 ## Source notes
 
