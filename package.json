@@ -1,0 +1,15 @@
+{
+  "name": "hiapi-gpt-image-2-5-skill",
+  "version": "0.1.0",
+  "description": "HiAPI GPT Image 2.5 Agent Skill for Flare and Sunburst image generation and editing",
+  "homepage": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill#readme",
+  "repository": { "type": "git", "url": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill.git" },
+  "bugs": { "url": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill/issues" },
+  "keywords": ["hiapi", "gpt-image-2-5", "agent-skill", "ai-image-generation", "image-editing", "codex", "claude-code", "flare", "sunburst"],
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "bin": { "hiapi-gpt-image-2-5-install": "./scripts/install.mjs", "hiapi-gpt-image-2-5": "./scripts/hiapi-gpt-image-2-5.mjs", "hiapi-gpt-image-2-5-check": "./scripts/check-config.mjs" },
+  "scripts": { "test": "node --test tests/*.test.mjs", "check:contract": "node scripts/check-config.mjs" }
+}
