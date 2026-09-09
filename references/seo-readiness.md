@@ -1,6 +1,6 @@
 # SEO and discoverability readiness
 
-This checklist improves relevance and installation clarity; it does not guarantee crawling, indexing, directory inclusion, ranking, or client compatibility. The GitHub repository has not been created, this checkout has no remote, and the package has not been publicly installed or listed.
+This checklist improves relevance and installation clarity; it does not guarantee crawling, indexing, directory inclusion, ranking, or client compatibility. The public repository and its release metadata are configured; search indexing and directory listing remain unverified.
 
 ## Completed locally
 
@@ -11,12 +11,19 @@ This checklist improves relevance and installation clarity; it does not guarante
 - The official Skills CLI was locally run with telemetry disabled against this checkout and listed one exact skill match; listing is discovery evidence only, not installation, publication, or directory ranking evidence.
 - `.github/repository-metadata.json` is a release-time intent file for GitHub description, homepage, topics, and social preview. It does not change GitHub settings automatically. Topics are lowercase, hyphenated, and within the 20-topic/50-character limits. The metadata points to `assets/github-social-preview.jpg`, a same-size JPEG derived from the README PNG for GitHub's social-preview upload size budget; the READMEs intentionally continue to reference the PNG.
 
+## Verified after publication
+
+- GitHub About description, homepage, and 11 repository topics were configured through the GitHub API.
+- The GitHub social preview was uploaded and visually confirmed in repository Settings. The public `og:image` is `https://repository-images.githubusercontent.com/1362432407/9a6e6462-63cf-4e72-975f-e68dac873da1`.
+- The official Agent Skills CLI command `npx --yes skills add HiAPIAI/hiapi-gpt-image-2-5-skill --skill hiapi-gpt-image-2-5 --agent codex --copy --yes` installed the exact skill successfully into a clean temporary project. After installation, Flare `--dry-run --estimate` returned `paidTaskCreated:false` and a current medium estimate of `$0.0672`.
+- No global skill installation and no paid task were performed during this acceptance. Client runtime acceptance beyond the recorded Codex installation remains separate.
+
 ## Release-time actions
 
-1. Create the intended GitHub repository and apply the metadata file manually or through an authorized release workflow; verify the About description, homepage, topics, and social preview. A local README image link or metadata intent file does not prove that GitHub has uploaded/configured the social preview.
-2. Publish the repository before advertising `npx skills add HiAPIAI/hiapi-gpt-image-2-5-skill --skill hiapi-gpt-image-2-5`. Then run that command through the official Agent Skills CLI and record install evidence.
-3. Verify raw README, `SKILL.md`, `llms.txt`, asset URLs, default branch, and any directory submission/telemetry separately. Test supported Agent Skills clients individually; do not convert documentation into client acceptance.
-4. Keep model availability, skill publication, directory inclusion, crawling/indexing, and ranking as separate states.
+1. Verify raw README, `SKILL.md`, `llms.txt`, asset URLs, default branch, and any directory submission/telemetry separately.
+2. Test supported Agent Skills clients individually; do not convert documentation into client acceptance.
+3. Keep model availability, skill publication, directory inclusion, crawling/indexing, and ranking as separate states. `skills.sh` listing and Google indexing have not been verified.
+4. The central `hiapi-skills` and `awesome-gpt-image-2-prompts` updates are represented by open PRs and are not claimed as merged or exposed on their default branches.
 
 ## Source notes
 
