@@ -5,7 +5,7 @@ description: Use only for HiAPI GPT Image 2.5 image generation and editing with 
 
 # HiAPI GPT Image 2.5
 
-This local release candidate wraps HiAPI's unified async image API for exactly two model IDs:
+This released 0.1.0 skill wraps HiAPI's unified async image API for exactly two model IDs:
 
 - `gpt-image-2.5-flare` — the default when no model is selected.
 - `gpt-image-2.5-sunburst` — use only when the caller explicitly selects it.
@@ -24,4 +24,4 @@ Read [references/api.md](references/api.md) for the field contract, [references/
 
 ## Safety boundary
 
-`--dry-run`, `--estimate`, and local validation are non-billing. Creating a task may spend account balance. The package is a local release candidate; it does not claim public installation acceptance, production promotion, or a paid generation. Callbacks and HiAPI persistent storage are not implemented as CLI flags in this package; use the direct API snippets in the references when those features are enabled for the account.
+`--dry-run`, `--estimate`, and local validation are non-billing. Creating a task may spend account balance. This package does not claim a paid generation or client runtime acceptance. Callbacks and HiAPI persistent storage are not implemented as CLI flags in this package; use the direct API snippets in the references when those features are enabled for the account.
