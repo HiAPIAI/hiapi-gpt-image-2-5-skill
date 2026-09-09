@@ -1,0 +1,8 @@
+interface:
+  display_name: "HiAPI GPT Image 2.5"
+  short_description: "Generate or edit one image with GPT Image 2.5"
+  brand_color: "#F97316"
+  default_prompt: "Use $hiapi-gpt-image-2-5 for GPT Image 2.5 only. Choose Flare by default or an explicitly requested Sunburst, preflight with --dry-run --estimate, submit once with idempotency, then recover and quality-check the image."
+
+policy:
+  allow_implicit_invocation: true

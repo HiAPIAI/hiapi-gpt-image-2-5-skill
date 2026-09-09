@@ -1,0 +1,21 @@
+{
+  "skillId": "hiapi-gpt-image-2-5",
+  "skillName": "HiAPI GPT Image 2.5",
+  "schemaVersion": 1,
+  "family": "gpt-image-2.5",
+  "version": "0.1.0",
+  "publicRepo": "HiAPIAI/hiapi-gpt-image-2-5-skill",
+  "status": "release",
+  "modelIds": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],
+  "centralDirectory": "hiapi-skills",
+  "relatedRepositories": ["awesome-gpt-image-2-prompts"],
+  "cover": "assets/social-preview-gpt-image-2-5.png",
+  "publicContractMarkers": [
+    "gpt-image-2.5-flare",
+    "gpt-image-2.5-sunburst",
+    "image-to-image"
+  ],
+  "forbiddenPublicClaims": ["unlimited images"],
+  "liveContractCommand": "npm run check:contract",
+  "testCommand": "npm test"
+}

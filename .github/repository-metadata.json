@@ -1,0 +1,20 @@
+{
+  "description": "HiAPI GPT Image 2.5 Agent Skill for Codex and Claude Code image generation and editing with Flare and Sunburst",
+  "homepage": "https://www.hiapi.ai/en/models/gpt-image-2.5-flare",
+  "topics": [
+    "hiapi",
+    "gpt-image-2-5",
+    "agent-skills",
+    "ai-image-generation",
+    "image-editing",
+    "codex",
+    "claude-code",
+    "cursor",
+    "openclaw",
+    "flare",
+    "sunburst"
+  ],
+  "socialPreview": "assets/github-social-preview.jpg",
+  "applyAutomatically": false,
+  "note": "Release-time intent only. This file does not apply GitHub About, topics, homepage, or social-preview settings automatically."
+}

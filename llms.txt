@@ -1,0 +1,11 @@
+# HiAPI GPT Image 2.5 Agent Skill
+
+HiAPI Agent Skill for `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst`, covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
+
+- [README](README.md): installation, scenarios, examples, and FAQ
+- [Skill instructions](SKILL.md): invocation boundary and workflow
+- [API contract](references/api.md): fields, enums, defaults, pricing snapshot
+- [Output and recovery](references/output.md): polling, download, and QC
+- [Agent installation](llms-install.md): local installer and planned public command
+- [Flare model docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare/)
+- [Sunburst model docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst/)
