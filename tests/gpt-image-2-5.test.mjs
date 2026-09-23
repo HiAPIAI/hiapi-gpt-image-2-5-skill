@@ -7,8 +7,35 @@ import {
   normalizeImageUrls,
   parseArgs,
   waitForImage,
+  fetchPricingEstimate,
   MODELS,
 } from "../scripts/lib/gpt-image-2-5.mjs";
+
+test("estimate matches the canonical @pro pricing row for a bare model ID", async () => {
+  const pricing = {
+    data: [
+      {
+        model_name: "gpt-image-2.5-flare@pro",
+        base_usd_value: 0.0672,
+        base_display_unit: { en: "per output image" },
+        policies: [
+          { name: "LOW", rule: { quality: { match: "low" } }, usd_value: 0.0172 },
+          { name: "MEDIUM", rule: { quality: { match: "medium" } }, usd_value: 0.0672 },
+        ],
+      },
+    ],
+  };
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
+  const payload = buildImagePayload({ prompt: "p", quality: "low" });
+  const estimate = await fetchPricingEstimate(payload, { fetchImpl });
+  assert.equal(estimate.model, "gpt-image-2.5-flare");
+  assert.equal(estimate.pricingModel, "gpt-image-2.5-flare@pro");
+  assert.equal(estimate.unitUsd, 0.0172);
+  await assert.rejects(
+    fetchPricingEstimate(buildImagePayload({ prompt: "p", model: MODELS.sunburst }), { fetchImpl }),
+    /does not list gpt-image-2.5-sunburst/,
+  );
+});
 test("builds exact t2i and i2i payloads and omits empty image_urls", () => {
   const t = buildImagePayload({
     model: MODELS.flare,

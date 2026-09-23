@@ -3,7 +3,7 @@
   "skillName": "HiAPI GPT Image 2.5",
   "schemaVersion": 1,
   "family": "gpt-image-2.5",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publicRepo": "HiAPIAI/hiapi-gpt-image-2-5-skill",
   "status": "release",
   "modelIds": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],

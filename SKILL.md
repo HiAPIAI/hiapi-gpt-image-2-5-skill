@@ -5,7 +5,7 @@ description: Use only for HiAPI GPT Image 2.5 image generation and editing with 
 
 # HiAPI GPT Image 2.5
 
-This released 0.1.0 skill wraps HiAPI's unified async image API for exactly two model IDs:
+This released 0.1.1 skill wraps HiAPI's unified async image API for exactly two model IDs:
 
 - `gpt-image-2.5-flare` — the default when no model is selected.
 - `gpt-image-2.5-sunburst` — use only when the caller explicitly selects it.

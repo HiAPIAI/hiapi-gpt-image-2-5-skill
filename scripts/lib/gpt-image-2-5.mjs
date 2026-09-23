@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.1.0";
+export const SKILL_VERSION = "0.1.1";
 export const MODELS = Object.freeze({
   flare: "gpt-image-2.5-flare",
   sunburst: "gpt-image-2.5-sunburst",
@@ -524,9 +524,12 @@ export async function fetchPricingEstimate(payload, options = {}) {
   if (!response.ok)
     throw new Error(`Pricing check failed with HTTP ${response.status}.`);
   const body = parseJsonText(response._bodyText);
-  const row = body?.data?.find((entry) => entry?.model_name === payload.model);
+  // The public pricing list keys these models by their canonical routed ID
+  // (`gpt-image-2.5-flare@pro`), while the task request keeps the bare model ID.
+  const pricingNames = [payload.model, `${payload.model}@pro`];
+  const row = body?.data?.find((entry) => pricingNames.includes(entry?.model_name));
   if (!row)
-    throw new Error(`Current public pricing does not list ${payload.model}.`);
+    throw new Error(`Current public pricing does not list ${payload.model} (checked ${pricingNames.join(", ")}).`);
   const policy = (row.policies || []).find((p) =>
     Object.entries(p.rule || {}).every(
       ([k, v]) => payload.input[k] === v.match,
@@ -535,6 +538,7 @@ export async function fetchPricingEstimate(payload, options = {}) {
   const unitUsd = Number(policy?.usd_value ?? row.base_usd_value);
   return {
     model: payload.model,
+    pricingModel: row.model_name,
     unitUsd,
     estimatedUsd: Number.isFinite(unitUsd) ? Number(unitUsd.toFixed(4)) : null,
     billingBasis:
