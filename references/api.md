@@ -28,7 +28,7 @@ The CLI flag mapping is `--model`, repeated `--image-url`, `--aspect-ratio`, `--
 
 ## Pricing and estimates
 
-`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. A 2026-09-09 snapshot observed the following USD/image values: `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are a dated snapshot, not a billing guarantee; final billing follows the accepted task. Preflight does not create a task.
+`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. The pricing list keys these models by their canonical routed IDs (`gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro`); the CLI checks both the bare model ID and the `@pro` row, and the task request itself keeps the bare model ID. A 2026-09-09 snapshot observed the following USD/image values: `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are a dated snapshot, not a billing guarantee; final billing follows the accepted task. Preflight does not create a task.
 
 ## Direct API recovery and optional features
 

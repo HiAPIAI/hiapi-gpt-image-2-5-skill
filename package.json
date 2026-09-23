@@ -1,6 +1,6 @@
 {
   "name": "hiapi-gpt-image-2-5-skill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HiAPI GPT Image 2.5 Agent Skill for Flare and Sunburst image generation and editing",
   "homepage": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill#readme",
   "repository": { "type": "git", "url": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill.git" },
