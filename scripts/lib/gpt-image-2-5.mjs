@@ -3,12 +3,20 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.2.0";
-// Quality-tier IDs: priced by `quality`, selected only when named explicitly.
-export const MODELS = Object.freeze({
+export const SKILL_VERSION = "0.3.0";
+// Family base names. Never sent as a model ID: the bare IDs are not a
+// supported request route; use a mode ID or the `@pro` route instead.
+export const FAMILIES = Object.freeze({
   flare: "gpt-image-2.5-flare",
   sunburst: "gpt-image-2.5-sunburst",
 });
+// Pro route: priced by `quality`, selected with --route pro or an explicit
+// `@pro` model ID.
+export const PRO_MODELS = Object.freeze({
+  flare: "gpt-image-2.5-flare@pro",
+  sunburst: "gpt-image-2.5-sunburst@pro",
+});
+export const ROUTES = new Set(["mode", "pro"]);
 // Mode IDs: priced by `resolution`; the default route, chosen by whether
 // reference images are supplied.
 export const MODE_MODELS = Object.freeze({
@@ -19,7 +27,7 @@ export const MODE_MODELS = Object.freeze({
 });
 export const ALL_MODEL_IDS = Object.freeze([
   ...Object.values(MODE_MODELS),
-  ...Object.values(MODELS),
+  ...Object.values(PRO_MODELS),
 ]);
 export const TEXT_TO_IMAGE = "text-to-image";
 export const IMAGE_TO_IMAGE = "image-to-image";
@@ -121,8 +129,12 @@ function enumValue(value, fallback, allowed, name) {
     );
   return v;
 }
-export function normalizeModel(value = MODELS.flare) {
+export function normalizeModel(value) {
   const v = String(value).trim();
+  if (Object.values(FAMILIES).includes(v))
+    throw new Error(
+      `"${v}" cannot be requested directly. Use ${v}/text-to-image or ${v}/image-to-image (default route), or ${v}@pro (--route pro) for quality tiers.`,
+    );
   if (!ALL_MODEL_IDS.includes(v))
     throw new Error(
       `Unsupported model ID "${v}". Use one of: ${ALL_MODEL_IDS.join(", ")}.`,
@@ -132,21 +144,36 @@ export function normalizeModel(value = MODELS.flare) {
 export function isModeModel(model) {
   return Object.values(MODE_MODELS).includes(model);
 }
+export function isProModel(model) {
+  return Object.values(PRO_MODELS).includes(model);
+}
+export function normalizeRoute(value = "mode") {
+  const v = String(value).trim().toLowerCase();
+  if (!ROUTES.has(v))
+    throw new Error(`Unsupported route "${value}". Use mode or pro.`);
+  return v;
+}
 export function normalizeFamily(value = "flare") {
   const v = String(value).trim().toLowerCase();
-  if (!MODELS[v])
+  if (!FAMILIES[v])
     throw new Error(`Unsupported family "${value}". Use flare or sunburst.`);
   return v;
 }
-// Picks the model ID: an explicit --model wins (and must agree with the
-// presence of reference images); otherwise the family's mode route is used.
+// Picks the model ID: an explicit --model wins (and must agree with --route,
+// --family, and the presence of reference images); otherwise --route and
+// --family select it, defaulting to the family's mode model.
 export function resolveModel(options = {}, hasImages = false) {
   const explicit = options.model || options.modelId;
   const mode = hasImages ? IMAGE_TO_IMAGE : TEXT_TO_IMAGE;
-  if (!explicit)
-    return `${MODELS[normalizeFamily(options.family)]}/${mode}`;
+  const route = options.route == null ? null : normalizeRoute(options.route);
+  if (!explicit) {
+    const family = FAMILIES[normalizeFamily(options.family)];
+    return route === "pro" ? `${family}@pro` : `${family}/${mode}`;
+  }
   const model = normalizeModel(explicit);
-  if (options.family && !model.startsWith(`${MODELS[normalizeFamily(options.family)]}`))
+  if (route && route !== (isProModel(model) ? "pro" : "mode"))
+    throw new Error(`--route ${route} conflicts with --model ${model}.`);
+  if (options.family && !model.startsWith(FAMILIES[normalizeFamily(options.family)]))
     throw new Error(`--family ${options.family} conflicts with --model ${model}.`);
   if (isModeModel(model) && !model.endsWith(`/${mode}`))
     throw new Error(
@@ -221,7 +248,7 @@ export function buildImagePayload(options = {}) {
       throw new Error(`prompt must be at most ${MODE_PROMPT_MAX} characters.`);
     if (options.quality != null || outputFormat != null)
       throw new Error(
-        `${model} is priced by resolution and does not accept quality or output_format; use --resolution, or select ${model.split("/")[0]} explicitly for quality tiers.`,
+        `${model} is priced by resolution and does not accept quality or output_format; use --resolution, or --route pro for quality tiers.`,
       );
     const imageUrls = normalizeImageUrls(rawUrls, { allowDataUri: true });
     const resolution = normalizeResolution(options.resolution);
@@ -247,7 +274,7 @@ export function buildImagePayload(options = {}) {
     throw new Error(`prompt must be at most ${QUALITY_PROMPT_MAX} characters.`);
   if (options.resolution != null)
     throw new Error(
-      `${model} is priced by quality and does not accept resolution; use --quality, or omit --model for the resolution-priced mode route.`,
+      `${model} is priced by quality and does not accept resolution; use --quality, or drop --route pro for the resolution-priced mode route.`,
     );
   const imageUrls = normalizeImageUrls(rawUrls);
   const background = normalizeBackground(options.background);
@@ -628,12 +655,8 @@ export async function fetchPricingEstimate(payload, options = {}) {
   if (!response.ok)
     throw new Error(`Pricing check failed with HTTP ${response.status}.`);
   const body = parseJsonText(response._bodyText);
-  // The public pricing list keys the quality-tier models by their canonical
-  // routed ID (`gpt-image-2.5-flare@pro`), while the task request keeps the
-  // bare model ID. Mode models are listed under their exact ID.
-  const pricingNames = isModeModel(payload.model)
-    ? [payload.model]
-    : [payload.model, `${payload.model}@pro`];
+  // Every supported route is listed in public pricing under its exact ID.
+  const pricingNames = [payload.model];
   const row = body?.data?.find((entry) => pricingNames.includes(entry?.model_name));
   if (!row)
     throw new Error(`Current public pricing does not list ${payload.model} (checked ${pricingNames.join(", ")}).`);
@@ -662,7 +685,7 @@ export async function checkLiveContract(options = {}) {
   ).replace(/\/+$/, "");
   const fetchImpl = options.fetchImpl || fetch;
   const checks = [];
-  for (const model of Object.values(MODELS)) {
+  for (const model of Object.values(PRO_MODELS)) {
     const response = await boundedFetch(
       fetchImpl,
       `${siteUrl}/api/models/content?name=${encodeURIComponent(model)}`,
@@ -878,6 +901,7 @@ export function parseArgs(argv) {
     "--prompt": "prompt",
     "--model": "model",
     "--family": "family",
+    "--route": "route",
     "--resolution": "resolution",
     "--aspect-ratio": "aspectRatio",
     "--aspect": "aspectRatio",
@@ -918,7 +942,7 @@ export function parseArgs(argv) {
 export function usage() {
   return `HiAPI GPT Image 2.5 skill
 
-Default route: omit --model. Without --image-url the CLI uses gpt-image-2.5-<family>/text-to-image; with --image-url it uses gpt-image-2.5-<family>/image-to-image. Family defaults to flare.
+Default route (mode): without --image-url the CLI uses gpt-image-2.5-<family>/text-to-image; with --image-url it uses gpt-image-2.5-<family>/image-to-image. Family defaults to flare. --route pro uses gpt-image-2.5-<family>@pro (quality tiers). The bare IDs gpt-image-2.5-flare / gpt-image-2.5-sunburst are not accepted.
 
 Preflight: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --dry-run --estimate
 Create: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --resolution 2K
@@ -926,7 +950,7 @@ Edit: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --image-url <url>
 Recover: node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id <task-id>
 
 Mode route options: --family <flare|sunburst>, --image-url <url|data URI> (repeatable, max 16), --aspect-ratio <auto|1:1|3:2|2:3|4:3|3:4|16:9|9:16|21:9|27:16|16:27|9:8|8:9>, --resolution <1K|2K|4K>, --background <auto|transparent|opaque> (1K only)
-Quality-tier route (explicit only): --model <gpt-image-2.5-flare|gpt-image-2.5-sunburst>, --image-url <url>, --aspect-ratio <schema enum or pixel size>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
+Pro route: --route pro [--family <flare|sunburst>] or --model <gpt-image-2.5-flare@pro|gpt-image-2.5-sunburst@pro>, --image-url <url>, --aspect-ratio <schema enum or pixel size>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
 Common: --model <exact ID>, --dry-run, --estimate, --no-wait, --no-save, --idempotency-key <key>, --resume-task-id <id>, --output-dir <dir>, --timeout-minutes <n>`;
 }
 function timestamp() {

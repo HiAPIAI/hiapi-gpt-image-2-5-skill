@@ -3,7 +3,7 @@
   "skillName": "HiAPI GPT Image 2.5",
   "schemaVersion": 1,
   "family": "gpt-image-2.5",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publicRepo": "HiAPIAI/hiapi-gpt-image-2-5-skill",
   "status": "release",
   "modelIds": [
@@ -11,8 +11,8 @@
     "gpt-image-2.5-flare/image-to-image",
     "gpt-image-2.5-sunburst/text-to-image",
     "gpt-image-2.5-sunburst/image-to-image",
-    "gpt-image-2.5-flare",
-    "gpt-image-2.5-sunburst"
+    "gpt-image-2.5-flare@pro",
+    "gpt-image-2.5-sunburst@pro"
   ],
   "centralDirectory": "hiapi-skills",
   "relatedRepositories": [
@@ -24,8 +24,8 @@
     "gpt-image-2.5-flare/image-to-image",
     "gpt-image-2.5-sunburst/text-to-image",
     "gpt-image-2.5-sunburst/image-to-image",
-    "gpt-image-2.5-flare",
-    "gpt-image-2.5-sunburst",
+    "gpt-image-2.5-flare@pro",
+    "gpt-image-2.5-sunburst@pro",
     "image-to-image"
   ],
   "forbiddenPublicClaims": [

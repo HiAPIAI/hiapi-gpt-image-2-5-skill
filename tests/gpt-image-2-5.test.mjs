@@ -8,11 +8,11 @@ import {
   parseArgs,
   waitForImage,
   fetchPricingEstimate,
-  MODELS,
+  PRO_MODELS,
   MODE_MODELS,
 } from "../scripts/lib/gpt-image-2-5.mjs";
 
-test("estimate matches the canonical @pro pricing row for a bare model ID", async () => {
+test("estimate matches the exact @pro pricing row", async () => {
   const pricing = {
     data: [
       {
@@ -27,25 +27,25 @@ test("estimate matches the canonical @pro pricing row for a bare model ID", asyn
     ],
   };
   const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
-  const payload = buildImagePayload({ prompt: "p", model: MODELS.flare, quality: "low" });
+  const payload = buildImagePayload({ prompt: "p", model: PRO_MODELS.flare, quality: "low" });
   const estimate = await fetchPricingEstimate(payload, { fetchImpl });
-  assert.equal(estimate.model, "gpt-image-2.5-flare");
+  assert.equal(estimate.model, "gpt-image-2.5-flare@pro");
   assert.equal(estimate.pricingModel, "gpt-image-2.5-flare@pro");
   assert.equal(estimate.unitUsd, 0.0172);
   await assert.rejects(
-    fetchPricingEstimate(buildImagePayload({ prompt: "p", model: MODELS.sunburst }), { fetchImpl }),
+    fetchPricingEstimate(buildImagePayload({ prompt: "p", model: PRO_MODELS.sunburst }), { fetchImpl }),
     /does not list gpt-image-2.5-sunburst/,
   );
 });
 test("builds exact t2i and i2i payloads and omits empty image_urls", () => {
   const t = buildImagePayload({
-    model: MODELS.flare,
+    model: PRO_MODELS.flare,
     prompt: "poster",
     aspectRatio: "3840x2160",
     quality: "xhigh",
   });
   assert.deepEqual(t, {
-    model: MODELS.flare,
+    model: PRO_MODELS.flare,
     input: {
       prompt: "poster",
       aspect_ratio: "3840x2160",
@@ -55,25 +55,25 @@ test("builds exact t2i and i2i payloads and omits empty image_urls", () => {
     },
   });
   const i = buildImagePayload({
-    model: MODELS.sunburst,
+    model: PRO_MODELS.sunburst,
     prompt: "edit",
     imageUrls: ["https://example.com/a.png"],
     background: "transparent",
     outputFormat: "png",
   });
-  assert.equal(i.model, MODELS.sunburst);
+  assert.equal(i.model, PRO_MODELS.sunburst);
   assert.deepEqual(i.input.image_urls, ["https://example.com/a.png"]);
 });
 test("enforces schema enums, image count, and transparent format", () => {
   assert.throws(
-    () => buildImagePayload({ prompt: "x", model: MODELS.flare, aspectRatio: "2:1" }),
+    () => buildImagePayload({ prompt: "x", model: PRO_MODELS.flare, aspectRatio: "2:1" }),
     /Unsupported aspect ratio/,
   );
   assert.throws(
     () =>
       buildImagePayload({
         prompt: "x",
-        model: MODELS.flare,
+        model: PRO_MODELS.flare,
         background: "transparent",
         outputFormat: "jpeg",
       }),
@@ -132,7 +132,7 @@ test("parses CLI preflight and output URL shapes", () => {
   assert.deepEqual(
     parseArgs([
       "--model",
-      MODELS.sunburst,
+      PRO_MODELS.sunburst,
       "--prompt",
       "x",
       "--image-url",
@@ -179,7 +179,7 @@ test("mode route rejects quality-tier fields and cross-field violations", () => 
   );
   assert.throws(() => buildImagePayload({ prompt: "p", aspectRatio: "1536x1024" }), /Unsupported aspect ratio/);
   assert.throws(() => buildImagePayload({ prompt: "x".repeat(20001) }), /at most 20000/);
-  assert.throws(() => buildImagePayload({ prompt: "p", model: MODELS.flare, resolution: "1K" }), /priced by quality/);
+  assert.throws(() => buildImagePayload({ prompt: "p", model: PRO_MODELS.flare, resolution: "1K" }), /priced by quality/);
   assert.throws(
     () => buildImagePayload({ prompt: "p", model: MODE_MODELS.flareImageToImage }),
     /requires 1–16 image_urls/,
@@ -218,4 +218,20 @@ test("parses family and resolution flags", () => {
   assert.equal(o.family, "sunburst");
   assert.equal(o.resolution, "2K");
   assert.equal(o.prompt, "p");
+});
+test("bare family IDs are rejected; --route pro selects the @pro model", () => {
+  for (const bare of ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"])
+    assert.throws(() => buildImagePayload({ prompt: "p", model: bare }), /cannot be requested directly/);
+  const pro = buildImagePayload({ prompt: "p", route: "pro", family: "sunburst", quality: "low" });
+  assert.equal(pro.model, PRO_MODELS.sunburst);
+  assert.equal(pro.input.quality, "low");
+  assert.equal(
+    buildImagePayload({ prompt: "p", route: "pro", imageUrls: ["https://x/a.png"] }).model,
+    PRO_MODELS.flare,
+  );
+  assert.equal(buildImagePayload({ prompt: "p", route: "mode" }).model, MODE_MODELS.flareTextToImage);
+  assert.throws(() => buildImagePayload({ prompt: "p", route: "pro", model: MODE_MODELS.flareTextToImage }), /conflicts/);
+  assert.throws(() => buildImagePayload({ prompt: "p", route: "mode", model: PRO_MODELS.flare }), /conflicts/);
+  assert.throws(() => buildImagePayload({ prompt: "p", route: "fast" }), /Unsupported route/);
+  assert.equal(parseArgs(["--route", "pro", "p"]).route, "pro");
 });
