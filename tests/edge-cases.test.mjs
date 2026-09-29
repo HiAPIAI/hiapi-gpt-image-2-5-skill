@@ -58,7 +58,7 @@ test("soft update warns and still submits exactly one task", async () => {
       assert.equal(options.headers["Idempotency-Key"], "soft-key");
       return json({ data: { taskId: "soft-task" } });
     }
-    return policyResponse({ latestVersion: "0.2.0" });
+    return policyResponse({ latestVersion: "0.3.0" });
   };
   const result = await generateImage(
     { prompt: "soft", noWait: true, wait: false, idempotencyKey: "soft-key", fetchImpl },
@@ -75,7 +75,7 @@ test("hard update blocks new creation before POST", async () => {
       posts += 1;
       return json({ data: { taskId: "must-not-exist" } });
     }
-    return policyResponse({ latestVersion: "0.2.0", minimumVersion: "0.2.0" });
+    return policyResponse({ latestVersion: "0.3.0", minimumVersion: "0.3.0" });
   };
   await assert.rejects(
     generateImage({ prompt: "blocked", wait: false, fetchImpl }, config),

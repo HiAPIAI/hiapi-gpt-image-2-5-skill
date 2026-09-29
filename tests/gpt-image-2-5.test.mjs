@@ -9,6 +9,7 @@ import {
   waitForImage,
   fetchPricingEstimate,
   MODELS,
+  MODE_MODELS,
 } from "../scripts/lib/gpt-image-2-5.mjs";
 
 test("estimate matches the canonical @pro pricing row for a bare model ID", async () => {
@@ -26,7 +27,7 @@ test("estimate matches the canonical @pro pricing row for a bare model ID", asyn
     ],
   };
   const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
-  const payload = buildImagePayload({ prompt: "p", quality: "low" });
+  const payload = buildImagePayload({ prompt: "p", model: MODELS.flare, quality: "low" });
   const estimate = await fetchPricingEstimate(payload, { fetchImpl });
   assert.equal(estimate.model, "gpt-image-2.5-flare");
   assert.equal(estimate.pricingModel, "gpt-image-2.5-flare@pro");
@@ -65,13 +66,14 @@ test("builds exact t2i and i2i payloads and omits empty image_urls", () => {
 });
 test("enforces schema enums, image count, and transparent format", () => {
   assert.throws(
-    () => buildImagePayload({ prompt: "x", aspectRatio: "2:1" }),
+    () => buildImagePayload({ prompt: "x", model: MODELS.flare, aspectRatio: "2:1" }),
     /Unsupported aspect ratio/,
   );
   assert.throws(
     () =>
       buildImagePayload({
         prompt: "x",
+        model: MODELS.flare,
         background: "transparent",
         outputFormat: "jpeg",
       }),
@@ -145,4 +147,75 @@ test("parses CLI preflight and output URL shapes", () => {
     }),
     "https://x/i.png",
   );
+});
+
+test("defaults to the family mode route chosen by reference images", () => {
+  assert.deepEqual(buildImagePayload({ prompt: "p" }), {
+    model: MODE_MODELS.flareTextToImage,
+    input: { prompt: "p", aspect_ratio: "auto", resolution: "1K" },
+  });
+  const edit = buildImagePayload({
+    prompt: "e",
+    family: "sunburst",
+    imageUrls: ["https://example.com/a.png", "data:image/png;base64,AAAA"],
+    resolution: "4k",
+    aspectRatio: "21:9",
+  });
+  assert.equal(edit.model, MODE_MODELS.sunburstImageToImage);
+  assert.equal(edit.input.resolution, "4K");
+  assert.equal(edit.input.aspect_ratio, "21:9");
+  assert.equal(edit.input.background, undefined);
+  assert.equal(
+    buildImagePayload({ prompt: "p", background: "transparent" }).input.background,
+    "transparent",
+  );
+});
+test("mode route rejects quality-tier fields and cross-field violations", () => {
+  assert.throws(() => buildImagePayload({ prompt: "p", quality: "high" }), /priced by resolution/);
+  assert.throws(() => buildImagePayload({ prompt: "p", outputFormat: "png" }), /priced by resolution/);
+  assert.throws(
+    () => buildImagePayload({ prompt: "p", resolution: "2K", background: "opaque" }),
+    /only at resolution 1K/,
+  );
+  assert.throws(() => buildImagePayload({ prompt: "p", aspectRatio: "1536x1024" }), /Unsupported aspect ratio/);
+  assert.throws(() => buildImagePayload({ prompt: "x".repeat(20001) }), /at most 20000/);
+  assert.throws(() => buildImagePayload({ prompt: "p", model: MODELS.flare, resolution: "1K" }), /priced by quality/);
+  assert.throws(
+    () => buildImagePayload({ prompt: "p", model: MODE_MODELS.flareImageToImage }),
+    /requires 1–16 image_urls/,
+  );
+  assert.throws(
+    () => buildImagePayload({ prompt: "p", model: MODE_MODELS.flareTextToImage, imageUrls: ["https://x/a.png"] }),
+    /does not accept image_urls/,
+  );
+  assert.throws(
+    () => buildImagePayload({ prompt: "p", family: "flare", model: MODE_MODELS.sunburstTextToImage }),
+    /conflicts/,
+  );
+  assert.throws(() => buildImagePayload({ prompt: "p", family: "nova" }), /Unsupported family/);
+});
+test("estimate matches the exact mode pricing row by resolution", async () => {
+  const pricing = {
+    data: [
+      {
+        model_name: "gpt-image-2.5-flare/image-to-image",
+        base_usd_value: 0.05,
+        policies: [
+          { rule: { resolution: { match: "1K" } }, usd_value: 0.05 },
+          { rule: { resolution: { match: "2K" } }, usd_value: 0.08 },
+        ],
+      },
+    ],
+  };
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
+  const payload = buildImagePayload({ prompt: "p", imageUrls: ["https://x/a.png"], resolution: "2K" });
+  const estimate = await fetchPricingEstimate(payload, { fetchImpl });
+  assert.equal(estimate.pricingModel, "gpt-image-2.5-flare/image-to-image");
+  assert.equal(estimate.unitUsd, 0.08);
+});
+test("parses family and resolution flags", () => {
+  const o = parseArgs(["--family", "sunburst", "--resolution", "2K", "p"]);
+  assert.equal(o.family, "sunburst");
+  assert.equal(o.resolution, "2K");
+  assert.equal(o.prompt, "p");
 });

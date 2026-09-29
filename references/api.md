@@ -1,6 +1,48 @@
 # API contract
 
-The authoritative model pages are [Flare](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare/) and [Sunburst](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst/). Both currently document the same request schema. This local skill sends `POST https://api.hiapi.ai/v1/tasks` with `Authorization: Bearer $HIAPI_API_KEY`, `Content-Type: application/json`, and an `Idempotency-Key` no longer than 255 UTF-8 bytes.
+This skill sends `POST https://api.hiapi.ai/v1/tasks` with `Authorization: Bearer $HIAPI_API_KEY`, `Content-Type: application/json`, and an `Idempotency-Key` no longer than 255 UTF-8 bytes. `model` is top level; parameters sit inside `input`.
+
+## Model selection
+
+| `--model` | `--image-url` | Model sent |
+| --- | --- | --- |
+| omitted (`--family flare`, default) | none | `gpt-image-2.5-flare/text-to-image` |
+| omitted (`--family flare`, default) | 1–16 | `gpt-image-2.5-flare/image-to-image` |
+| omitted, `--family sunburst` | none | `gpt-image-2.5-sunburst/text-to-image` |
+| omitted, `--family sunburst` | 1–16 | `gpt-image-2.5-sunburst/image-to-image` |
+| any exact ID below | must match the mode | that ID |
+
+A text-to-image mode ID with `--image-url`, an image-to-image mode ID without it, or a `--family` that disagrees with `--model` is rejected locally.
+
+## Mode route (default)
+
+Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/), [Flare image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/), [Sunburst text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/), [Sunburst image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/). All four share one schema; image-to-image additionally requires `image_urls`.
+
+```json
+{
+  "model": "gpt-image-2.5-flare/text-to-image",
+  "input": {
+    "prompt": "A red apple isolated on a transparent background.",
+    "aspect_ratio": "auto",
+    "resolution": "1K",
+    "background": "transparent"
+  }
+}
+```
+
+| Field | Type | Default | Accepted values / constraint |
+| --- | --- | --- | --- |
+| `input.prompt` | string | — (required) | 1–20,000 characters |
+| `input.image_urls` | string[] | — | image-to-image only, required there: 1–16 JPEG/PNG/WebP, each ≤ 20 MP and ≤ 30 MB, public directly-downloadable HTTP(S) URL or data URI; forbidden for text-to-image |
+| `input.aspect_ratio` | enum | `auto` | `auto`, `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `27:16`, `16:27`, `9:8`, `8:9` |
+| `input.resolution` | enum | `1K` | `1K`, `2K`, `4K` |
+| `input.background` | enum | none (omitted) | `transparent`, `opaque`, `auto`; allowed only when `resolution` is `1K`. Transparent returns a PNG with alpha — describe an isolated subject with no backdrop or shadow |
+
+There is no `quality`, `output_format`, or `n` on this route. CLI flags: `--family`, `--model`, repeated `--image-url`, `--aspect-ratio`, `--resolution`, `--background`.
+
+## Quality-tier route (explicit)
+
+Authoritative pages: [Flare](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare/) and [Sunburst](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst/). Selected only by `--model gpt-image-2.5-flare` or `--model gpt-image-2.5-sunburst`.
 
 ```json
 {
@@ -15,7 +57,7 @@ The authoritative model pages are [Flare](https://www.hiapi.ai/docs/models/image
 }
 ```
 
-`model` is required and must be exactly `gpt-image-2.5-flare` or `gpt-image-2.5-sunburst`. `input.prompt` is required, a string of 1–32,000 characters. Omit `input.image_urls` for text-to-image. For editing or visual references, provide 1–16 non-empty public `http://` or `https://` URLs without embedded credentials; an empty array is invalid. Explain the role and order of multiple references in the prompt.
+`input.prompt` is required, 1–32,000 characters. Omit `input.image_urls` for text-to-image; for editing provide 1–16 non-empty public `http://` or `https://` URLs without embedded credentials. Explain the role and order of multiple references in the prompt.
 
 | Field | Type | Default | Accepted values / constraint |
 | --- | --- | --- | --- |
@@ -24,11 +66,11 @@ The authoritative model pages are [Flare](https://www.hiapi.ai/docs/models/image
 | `input.background` | enum | `auto` | `auto`, `transparent`, `opaque` |
 | `input.output_format` | enum | `webp` | `png`, `jpeg`, `webp`; transparency requires `png` or `webp` |
 
-The CLI flag mapping is `--model`, repeated `--image-url`, `--aspect-ratio`, `--quality`, `--background`, and `--output-format`. There is no CLI `n` or batch count: one task means one image.
+CLI flags: `--model`, repeated `--image-url`, `--aspect-ratio`, `--quality`, `--background`, `--output-format`. `--resolution` is rejected on this route.
 
 ## Pricing and estimates
 
-`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. The pricing list keys these models by their canonical routed IDs (`gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro`); the CLI checks both the bare model ID and the `@pro` row, and the task request itself keeps the bare model ID. A 2026-09-09 snapshot observed the following USD/image values: `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are a dated snapshot, not a billing guarantee; final billing follows the accepted task. Preflight does not create a task.
+`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. Quality-tier models are keyed by their canonical routed IDs (`gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro`); the CLI checks both the bare ID and the `@pro` row, and the task request keeps the bare ID. The same snapshot observed `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
 
 ## Direct API recovery and optional features
 
@@ -43,7 +85,7 @@ The CLI does not expose callback or persistent-storage flags. When the account/A
 
 ```json
 {
-  "model": "gpt-image-2.5-flare",
+  "model": "gpt-image-2.5-flare/text-to-image",
   "input": { "prompt": "A quiet alpine lake at dawn" },
   "callback": { "url": "https://example.com/hiapi/callback", "when": "final" },
   "storage": "persistent"
