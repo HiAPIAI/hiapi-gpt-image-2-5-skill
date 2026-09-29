@@ -1,6 +1,6 @@
 # HiAPI GPT Image 2.5 Agent Skill
 
-HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`, plus the explicit quality-tier IDs `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` — covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
+HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`, plus the pro route `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro` for quality tiers — covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
 
 - [README](README.md): installation, scenarios, examples, and FAQ
 - [Skill instructions](SKILL.md): invocation boundary and workflow
@@ -11,5 +11,4 @@ HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `
 - [Flare image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/)
 - [Sunburst text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/)
 - [Sunburst image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/)
-- [Flare quality-tier docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare/)
-- [Sunburst quality-tier docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst/)
+- [Pricing (includes @pro quality tiers)](https://www.hiapi.ai/en/pricing)

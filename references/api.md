@@ -4,15 +4,17 @@ This skill sends `POST https://api.hiapi.ai/v1/tasks` with `Authorization: Beare
 
 ## Model selection
 
-| `--model` | `--image-url` | Model sent |
+| Flags | `--image-url` | Model sent |
 | --- | --- | --- |
-| omitted (`--family flare`, default) | none | `gpt-image-2.5-flare/text-to-image` |
-| omitted (`--family flare`, default) | 1–16 | `gpt-image-2.5-flare/image-to-image` |
-| omitted, `--family sunburst` | none | `gpt-image-2.5-sunburst/text-to-image` |
-| omitted, `--family sunburst` | 1–16 | `gpt-image-2.5-sunburst/image-to-image` |
-| any exact ID below | must match the mode | that ID |
+| none (`--route mode --family flare` by default) | none | `gpt-image-2.5-flare/text-to-image` |
+| none | 1–16 | `gpt-image-2.5-flare/image-to-image` |
+| `--family sunburst` | none | `gpt-image-2.5-sunburst/text-to-image` |
+| `--family sunburst` | 1–16 | `gpt-image-2.5-sunburst/image-to-image` |
+| `--route pro` | optional | `gpt-image-2.5-flare@pro` |
+| `--route pro --family sunburst` | optional | `gpt-image-2.5-sunburst@pro` |
+| `--model <exact ID below>` | must match a mode ID | that ID |
 
-A text-to-image mode ID with `--image-url`, an image-to-image mode ID without it, or a `--family` that disagrees with `--model` is rejected locally.
+The bare IDs `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` are not a supported request route and are rejected locally; use a mode ID or the `@pro` ID. A text-to-image mode ID with `--image-url`, an image-to-image mode ID without it, or a `--route`/`--family` that disagrees with `--model` is also rejected.
 
 ## Mode route (default)
 
@@ -40,13 +42,13 @@ Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/imag
 
 There is no `quality`, `output_format`, or `n` on this route. CLI flags: `--family`, `--model`, repeated `--image-url`, `--aspect-ratio`, `--resolution`, `--background`.
 
-## Quality-tier route (explicit)
+## Pro route (`@pro`, quality tiers)
 
-Authoritative pages: [Flare](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare/) and [Sunburst](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst/). Selected only by `--model gpt-image-2.5-flare` or `--model gpt-image-2.5-sunburst`.
+Selected with `--route pro` (plus `--family sunburst` when requested) or `--model gpt-image-2.5-flare@pro` / `--model gpt-image-2.5-sunburst@pro`. The live public schema for each `@pro` ID is checked by `npm run check:contract`; see the [pricing page](https://www.hiapi.ai/en/pricing) for current quality prices.
 
 ```json
 {
-  "model": "gpt-image-2.5-flare",
+  "model": "gpt-image-2.5-flare@pro",
   "input": {
     "prompt": "A quiet alpine lake at dawn",
     "aspect_ratio": "1:1",
@@ -66,11 +68,11 @@ Authoritative pages: [Flare](https://www.hiapi.ai/docs/models/image/gpt-image-2-
 | `input.background` | enum | `auto` | `auto`, `transparent`, `opaque` |
 | `input.output_format` | enum | `webp` | `png`, `jpeg`, `webp`; transparency requires `png` or `webp` |
 
-CLI flags: `--model`, repeated `--image-url`, `--aspect-ratio`, `--quality`, `--background`, `--output-format`. `--resolution` is rejected on this route.
+CLI flags: `--route pro`, `--family`, `--model`, repeated `--image-url`, `--aspect-ratio`, `--quality`, `--background`, `--output-format`. `--resolution` is rejected on this route.
 
 ## Pricing and estimates
 
-`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. Quality-tier models are keyed by their canonical routed IDs (`gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro`); the CLI checks both the bare ID and the `@pro` row, and the task request keeps the bare ID. The same snapshot observed `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
+`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. The `@pro` models are listed under `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, the same IDs the task request sends, and priced by `quality`. The same snapshot observed `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
 
 ## Direct API recovery and optional features
 

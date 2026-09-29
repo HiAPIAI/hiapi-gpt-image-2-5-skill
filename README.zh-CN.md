@@ -2,7 +2,7 @@
 
 # GPT Image 2.5 Agent Skill：HiAPI 图像生成与编辑技能
 
-通过 HiAPI 从 Codex 或 Claude Code 使用 GPT Image 2.5 Flare 或 Sunburst 生成商品图、海报封面、透明素材或编辑参考图。默认按输入自动选择按分辨率计价的模式模型：没有参考图用 `gpt-image-2.5-flare/text-to-image`，有参考图用 `gpt-image-2.5-flare/image-to-image`；`--family sunburst` 切换到 Sunburst 对应模型。按质量计价的 `gpt-image-2.5-flare` 与 `gpt-image-2.5-sunburst` 仍可通过明确指定使用。
+通过 HiAPI 从 Codex 或 Claude Code 使用 GPT Image 2.5 Flare 或 Sunburst 生成商品图、海报封面、透明素材或编辑参考图。默认按输入自动选择按分辨率计价的模式模型：没有参考图用 `gpt-image-2.5-flare/text-to-image`，有参考图用 `gpt-image-2.5-flare/image-to-image`；`--family sunburst` 切换到 Sunburst 对应模型。`--route pro` 选择按质量计价的 `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`。不直接请求裸 ID `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`。
 
 已发布的技能包。可使用 Agent Skills CLI 安装；客户端运行和付费任务验收仍需单独核实。
 
@@ -22,9 +22,9 @@
 | 路线 | 模型 ID | 何时选用 | 计价依据 | 参数 |
 | --- | --- | --- | --- | --- |
 | 模式（默认） | `gpt-image-2.5-flare/text-to-image`、`gpt-image-2.5-flare/image-to-image`、`gpt-image-2.5-sunburst/text-to-image`、`gpt-image-2.5-sunburst/image-to-image` | 省略 `--model`；按是否传 `--image-url` 选模式；`--family` 默认 `flare` | 按 `resolution`（1K/2K/4K）每张计价 | 提示词 ≤ 20,000 字符，13 种比例（默认 `auto`），`resolution`（默认 `1K`），可选 `background`（仅 1K） |
-| 质量档（需明确指定） | `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` | `--model` 写明这两个 ID 之一 | 按 `quality` 每张计价 | 提示词 ≤ 32,000 字符，比例或像素尺寸，6 个质量值，背景，PNG/JPEG/WebP 输出 |
+| Pro（需明确指定） | `gpt-image-2.5-flare@pro`、`gpt-image-2.5-sunburst@pro` | `--route pro`（配合 `--family`），或 `--model` 写明这两个 ID 之一 | 按 `quality` 每张计价 | 提示词 ≤ 32,000 字符，比例或像素尺寸，6 个质量值，背景，PNG/JPEG/WebP 输出 |
 
-每个已接受的异步任务返回一张图片。模式路线传 `--quality`/`--output-format`、质量档传 `--resolution` 都会直接报错，不会静默丢弃。技能不对两条路线或 Flare/Sunburst 作未经验证的质量、速度或视觉排名。
+每个已接受的异步任务返回一张图片。模式路线传 `--quality`/`--output-format`、pro 路线传 `--resolution` 都会直接报错，不会静默丢弃。技能不对两条路线或 Flare/Sunburst 作未经验证的质量、速度或视觉排名。
 
 ## 安装
 
@@ -71,10 +71,10 @@ node scripts/hiapi-gpt-image-2-5.mjs --family sunburst \
   --idempotency-key gpt25-edit-001
 ```
 
-质量档需写明准确 ID：
+质量档走 pro 路线：
 
 ```bash
-node scripts/hiapi-gpt-image-2-5.mjs --model gpt-image-2.5-sunburst \
+node scripts/hiapi-gpt-image-2-5.mjs --route pro --family sunburst \
   --prompt "清晨安静的高山湖泊" --quality high --output-format webp \
   --dry-run --estimate
 ```
@@ -92,13 +92,13 @@ node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id "tk-hiapi-REPLACE_WITH_YOU
 
 **GPT Image 2.5 与 GPT Image 2 有什么关系？** 本技能只处理上表列出的 6 个 GPT Image 2.5 Flare/Sunburst 模型 ID。GPT Image 2 及其他图像模型不在本技能触发范围内，应分别查看当前模型文档。
 
-**2.5 模型怎么选？** 省略 `--model`：CLI 按是否传参考图，使用 Flare 的文生图或图生图模型。要求 Sunburst 时加 `--family sunburst`；需要质量档或指定 PNG/JPEG/WebP 输出时，写明 `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`。技能不对它们作未经验证的质量、速度或视觉排名。
+**2.5 模型怎么选？** 省略 `--model`：CLI 按是否传参考图，使用 Flare 的文生图或图生图模型。要求 Sunburst 时加 `--family sunburst`；需要质量档或指定 PNG/JPEG/WebP 输出时，用 `--route pro`（`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`）。技能不对它们作未经验证的质量、速度或视觉排名。
 
 **这是 API 还是 Skill？** HiAPI 提供异步 API 和模型契约；本仓库将校验、估价、幂等、轮询、恢复和下载封装成可重复的 Agent Skills 工作流。
 
 **需要 key 吗，价格怎么算？** 创建和恢复任务需要 `HIAPI_API_KEY`，本地校验和 dry-run 不需要。使用 `--estimate` 读取当前 `/api/pricing` 快照；估价不是账单保证，最终以已接受任务的当前价格为准。
 
-**透明背景怎么用？** 默认模式路线：设置 `--background transparent` 且 `--resolution 1K`（只有 1K 接受 `background`），返回带 alpha 的 PNG。质量档：设置 `--background transparent` 并选择 `--output-format png` 或 `webp`；JPEG 不支持透明度。
+**透明背景怎么用？** 默认模式路线：设置 `--background transparent` 且 `--resolution 1K`（只有 1K 接受 `background`），返回带 alpha 的 PNG。pro 路线：设置 `--background transparent` 并选择 `--output-format png` 或 `webp`；JPEG 不支持透明度。
 
 **没有 key 能安装或恢复吗？** 安装和 dry-run 是本地操作。恢复需要 key 和已有 task ID，但不会创建新任务；提交超时或使用 `--no-wait` 后，用 `--resume-task-id` 恢复。
 

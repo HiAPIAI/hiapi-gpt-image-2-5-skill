@@ -2,7 +2,7 @@
 
 # GPT Image 2.5 Agent Skill — Image Generation & Editing with HiAPI
 
-Generate product images, poster covers, transparent assets, or reference edits through HiAPI from Codex or Claude Code with GPT Image 2.5 Flare or Sunburst. By default the CLI picks the resolution-priced mode model from your input — `gpt-image-2.5-flare/text-to-image` without reference images, `gpt-image-2.5-flare/image-to-image` with them — and `--family sunburst` switches to the Sunburst pair. The quality-tier IDs `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` remain available when selected explicitly.
+Generate product images, poster covers, transparent assets, or reference edits through HiAPI from Codex or Claude Code with GPT Image 2.5 Flare or Sunburst. By default the CLI picks the resolution-priced mode model from your input — `gpt-image-2.5-flare/text-to-image` without reference images, `gpt-image-2.5-flare/image-to-image` with them — and `--family sunburst` switches to the Sunburst pair. `--route pro` selects the quality-priced `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`. The bare IDs `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` are not requested directly.
 
 Published skill package. Install with the Agent Skills CLI after verifying the repository URL; keep client runtime and paid-task acceptance separate.
 
@@ -22,9 +22,9 @@ Published skill package. Install with the Agent Skills CLI after verifying the r
 | Route | Model IDs | Selected when | Pricing basis | Controls |
 | --- | --- | --- | --- | --- |
 | Mode (default) | `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image` | `--model` omitted; mode follows whether `--image-url` is present; `--family` defaults to `flare` | per image by `resolution` (1K/2K/4K) | prompt ≤ 20,000 chars, 13 aspect ratios (default `auto`), `resolution` (default `1K`), optional `background` (1K only) |
-| Quality tier (explicit) | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | `--model` names one of these IDs | per image by `quality` | prompt ≤ 32,000 chars, ratios or pixel sizes, six quality values, background, PNG/JPEG/WebP output |
+| Pro (explicit) | `gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro` | `--route pro` (with `--family`), or `--model` names one of these IDs | per image by `quality` | prompt ≤ 32,000 chars, ratios or pixel sizes, six quality values, background, PNG/JPEG/WebP output |
 
-Each accepted async task returns one image. The CLI rejects `--quality`/`--output-format` on the mode route and `--resolution` on the quality-tier route instead of silently dropping them. The skill makes no quality, speed, or visual ranking between the routes or between Flare and Sunburst.
+Each accepted async task returns one image. The CLI rejects `--quality`/`--output-format` on the mode route and `--resolution` on the pro route instead of silently dropping them. The skill makes no quality, speed, or visual ranking between the routes or between Flare and Sunburst.
 
 ## Installation
 
@@ -71,10 +71,10 @@ node scripts/hiapi-gpt-image-2-5.mjs --family sunburst \
   --idempotency-key gpt25-edit-001
 ```
 
-Use a quality tier only by naming its exact ID:
+Use quality tiers through the pro route:
 
 ```bash
-node scripts/hiapi-gpt-image-2-5.mjs --model gpt-image-2.5-sunburst \
+node scripts/hiapi-gpt-image-2-5.mjs --route pro --family sunburst \
   --prompt "A quiet alpine lake at dawn" --quality high --output-format webp \
   --dry-run --estimate
 ```
@@ -92,13 +92,13 @@ Run checks locally with `npm test` and `npm run check:contract`. See [README.zh-
 
 **How is GPT Image 2.5 different from GPT Image 2?** This skill targets only the six GPT Image 2.5 Flare/Sunburst IDs listed above. GPT Image 2 and other image models are outside its invocation boundary; compare their current model documentation separately.
 
-**Which 2.5 model should I use?** Omit `--model`: the CLI uses Flare's text-to-image or image-to-image model depending on whether you pass reference images. Add `--family sunburst` when Sunburst is requested, or name `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` when you specifically need quality tiers or a PNG/JPEG/WebP output choice. The skill makes no unsupported quality, speed, or visual ranking between them.
+**Which 2.5 model should I use?** Omit `--model`: the CLI uses Flare's text-to-image or image-to-image model depending on whether you pass reference images. Add `--family sunburst` when Sunburst is requested, or use `--route pro` (`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`) when you specifically need quality tiers or a PNG/JPEG/WebP output choice. The skill makes no unsupported quality, speed, or visual ranking between them.
 
 **Is this an API or a skill?** HiAPI provides the async API and model contract; this repository packages a repeatable Agent Skills workflow around it, including validation, estimates, idempotency, polling, resume, and download.
 
 **Do I need a key, and what does it cost?** `HIAPI_API_KEY` is required for creation and recovery, not dry-run validation. Use `--estimate` for the current `/api/pricing` snapshot; estimates are not billing guarantees and accepted tasks follow current pricing.
 
-**How do transparent backgrounds work?** On the default mode route, set `--background transparent` at `--resolution 1K` (the only resolution that accepts `background`); the result is a PNG with alpha. On a quality-tier ID, set `--background transparent` with `--output-format png` or `webp`; JPEG cannot carry transparency.
+**How do transparent backgrounds work?** On the default mode route, set `--background transparent` at `--resolution 1K` (the only resolution that accepts `background`); the result is a PNG with alpha. On the pro route, set `--background transparent` with `--output-format png` or `webp`; JPEG cannot carry transparency.
 
 **Can I install or recover without an API key?** Installation and dry-run are local. Recovery needs the key and an existing task ID, but does not create a new task. Use `--resume-task-id` after a timeout or `--no-wait` submission.
 

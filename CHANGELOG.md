@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-09-29
+
+- Quality tiers now go through the pro route: `--route pro` (with `--family flare|sunburst`) or `--model gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`. The task request sends the `@pro` ID.
+- The bare IDs `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` are rejected locally with a pointer to the mode or `@pro` IDs; they are never sent.
+- `--estimate` and `check:contract` use the exact `@pro` pricing row and schema.
+- **Hard upgrade**: `minimumVersion` is 0.3.0 so no installed copy keeps sending the bare IDs; dry-run and recovery are unaffected.
+
 ## 0.2.0 — 2026-09-29
 
 - Added the four resolution-priced mode models: `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`.
