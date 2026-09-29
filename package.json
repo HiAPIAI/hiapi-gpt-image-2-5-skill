@@ -1,11 +1,11 @@
 {
   "name": "hiapi-gpt-image-2-5-skill",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "HiAPI GPT Image 2.5 Agent Skill for Flare and Sunburst image generation and editing",
   "homepage": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill#readme",
   "repository": { "type": "git", "url": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill.git" },
   "bugs": { "url": "https://github.com/HiAPIAI/hiapi-gpt-image-2-5-skill/issues" },
-  "keywords": ["hiapi", "gpt-image-2-5", "agent-skill", "ai-image-generation", "image-editing", "codex", "claude-code", "flare", "sunburst"],
+  "keywords": ["hiapi", "gpt-image-2-5", "agent-skill", "ai-image-generation", "image-editing", "codex", "claude-code", "flare", "sunburst", "text-to-image", "image-to-image"],
   "type": "module",
   "private": true,
   "license": "MIT",

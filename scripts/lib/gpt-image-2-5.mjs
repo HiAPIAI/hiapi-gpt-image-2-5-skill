@@ -3,11 +3,26 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.1.1";
+export const SKILL_VERSION = "0.2.0";
+// Quality-tier IDs: priced by `quality`, selected only when named explicitly.
 export const MODELS = Object.freeze({
   flare: "gpt-image-2.5-flare",
   sunburst: "gpt-image-2.5-sunburst",
 });
+// Mode IDs: priced by `resolution`; the default route, chosen by whether
+// reference images are supplied.
+export const MODE_MODELS = Object.freeze({
+  flareTextToImage: "gpt-image-2.5-flare/text-to-image",
+  flareImageToImage: "gpt-image-2.5-flare/image-to-image",
+  sunburstTextToImage: "gpt-image-2.5-sunburst/text-to-image",
+  sunburstImageToImage: "gpt-image-2.5-sunburst/image-to-image",
+});
+export const ALL_MODEL_IDS = Object.freeze([
+  ...Object.values(MODE_MODELS),
+  ...Object.values(MODELS),
+]);
+export const TEXT_TO_IMAGE = "text-to-image";
+export const IMAGE_TO_IMAGE = "image-to-image";
 export const DEFAULT_BASE_URL = "https://api.hiapi.ai";
 export const DEFAULT_SITE_URL = "https://www.hiapi.ai";
 export const DEFAULT_SKILLS_MANIFEST_URL =
@@ -45,10 +60,30 @@ export const QUALITIES = new Set([
   "auto",
 ]);
 export const BACKGROUNDS = new Set(["auto", "transparent", "opaque"]);
+export const MODE_ASPECT_RATIOS = new Set([
+  "auto",
+  "1:1",
+  "3:2",
+  "2:3",
+  "4:3",
+  "3:4",
+  "16:9",
+  "9:16",
+  "21:9",
+  "27:16",
+  "16:27",
+  "9:8",
+  "8:9",
+]);
+export const RESOLUTIONS = new Set(["1K", "2K", "4K"]);
+export const MODE_PROMPT_MAX = 20000;
+export const QUALITY_PROMPT_MAX = 32000;
 export const FORMATS = new Set(["png", "jpeg", "webp"]);
 export const MAX_IMAGES = 16;
 export const POLL_INTERVAL_MS = 3000;
 export const DEFAULT_TIMEOUT_MINUTES = 30;
+// 2K/4K PNG outputs run to tens of MB; the 15s request timeout is too short.
+export const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120000;
 export const HIAPI_API_KEYS_URL = "https://www.hiapi.ai/en/dashboard/api-keys";
 export const HIAPI_DASHBOARD_URL = "https://www.hiapi.ai/en/dashboard";
 export const HIAPI_PRICING_URL = "https://www.hiapi.ai/en/pricing";
@@ -88,9 +123,46 @@ function enumValue(value, fallback, allowed, name) {
 }
 export function normalizeModel(value = MODELS.flare) {
   const v = String(value).trim();
-  if (!Object.values(MODELS).includes(v))
+  if (!ALL_MODEL_IDS.includes(v))
     throw new Error(
-      `Unsupported model ID "${v}". Use gpt-image-2.5-flare or gpt-image-2.5-sunburst.`,
+      `Unsupported model ID "${v}". Use one of: ${ALL_MODEL_IDS.join(", ")}.`,
+    );
+  return v;
+}
+export function isModeModel(model) {
+  return Object.values(MODE_MODELS).includes(model);
+}
+export function normalizeFamily(value = "flare") {
+  const v = String(value).trim().toLowerCase();
+  if (!MODELS[v])
+    throw new Error(`Unsupported family "${value}". Use flare or sunburst.`);
+  return v;
+}
+// Picks the model ID: an explicit --model wins (and must agree with the
+// presence of reference images); otherwise the family's mode route is used.
+export function resolveModel(options = {}, hasImages = false) {
+  const explicit = options.model || options.modelId;
+  const mode = hasImages ? IMAGE_TO_IMAGE : TEXT_TO_IMAGE;
+  if (!explicit)
+    return `${MODELS[normalizeFamily(options.family)]}/${mode}`;
+  const model = normalizeModel(explicit);
+  if (options.family && !model.startsWith(`${MODELS[normalizeFamily(options.family)]}`))
+    throw new Error(`--family ${options.family} conflicts with --model ${model}.`);
+  if (isModeModel(model) && !model.endsWith(`/${mode}`))
+    throw new Error(
+      hasImages
+        ? `${model} does not accept image_urls; use the image-to-image model or omit --image-url.`
+        : `${model} requires 1–16 image_urls; add --image-url or use the text-to-image model.`,
+    );
+  return model;
+}
+export function normalizeResolution(value) {
+  const v = String(value ?? "1K")
+    .trim()
+    .toUpperCase();
+  if (!RESOLUTIONS.has(v))
+    throw new Error(
+      `Unsupported resolution "${value}". Use one of: ${[...RESOLUTIONS].join(", ")}.`,
     );
   return v;
 }
@@ -106,7 +178,7 @@ export function normalizeBackground(value) {
 export function normalizeOutputFormat(value) {
   return enumValue(value, "webp", FORMATS, "output format");
 }
-export function normalizeImageUrls(value) {
+export function normalizeImageUrls(value, { allowDataUri = false } = {}) {
   if (Array.isArray(value) && value.length === 0)
     throw new Error(
       "image_urls must be omitted for text-to-image; an empty array is invalid.",
@@ -115,6 +187,8 @@ export function normalizeImageUrls(value) {
   if (urls.length > MAX_IMAGES)
     throw new Error(`At most ${MAX_IMAGES} reference images are supported.`);
   for (const raw of urls) {
+    if (allowDataUri && /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(raw))
+      continue;
     let url;
     try {
       url = new URL(raw);
@@ -138,16 +212,46 @@ export function buildImagePayload(options = {}) {
     throw new Error(
       "A non-empty prompt is required for a new GPT Image 2.5 task.",
     );
-  if (prompt.length > 32000)
-    throw new Error("prompt must be at most 32000 characters.");
-  const model = normalizeModel(
-    options.model || options.modelId || MODELS.flare,
-  );
-  const imageUrls = normalizeImageUrls(options.imageUrls ?? options.image_urls);
+  const rawUrls = options.imageUrls ?? options.image_urls;
+  const hasImages = Array.isArray(rawUrls) ? rawUrls.length > 0 : !!rawUrls;
+  const model = resolveModel(options, hasImages);
+  const outputFormat = options.outputFormat ?? options.output_format;
+  if (isModeModel(model)) {
+    if (prompt.length > MODE_PROMPT_MAX)
+      throw new Error(`prompt must be at most ${MODE_PROMPT_MAX} characters.`);
+    if (options.quality != null || outputFormat != null)
+      throw new Error(
+        `${model} is priced by resolution and does not accept quality or output_format; use --resolution, or select ${model.split("/")[0]} explicitly for quality tiers.`,
+      );
+    const imageUrls = normalizeImageUrls(rawUrls, { allowDataUri: true });
+    const resolution = normalizeResolution(options.resolution);
+    const input = { prompt };
+    if (imageUrls.length) input.image_urls = imageUrls;
+    input.aspect_ratio = enumValue(
+      options.aspectRatio ?? options.aspect_ratio,
+      "auto",
+      MODE_ASPECT_RATIOS,
+      "aspect ratio",
+    );
+    input.resolution = resolution;
+    if (options.background != null) {
+      input.background = normalizeBackground(options.background);
+      if (resolution !== "1K")
+        throw new Error(
+          "background is supported only at resolution 1K; omit --background for 2K/4K.",
+        );
+    }
+    return { model, input };
+  }
+  if (prompt.length > QUALITY_PROMPT_MAX)
+    throw new Error(`prompt must be at most ${QUALITY_PROMPT_MAX} characters.`);
+  if (options.resolution != null)
+    throw new Error(
+      `${model} is priced by quality and does not accept resolution; use --quality, or omit --model for the resolution-priced mode route.`,
+    );
+  const imageUrls = normalizeImageUrls(rawUrls);
   const background = normalizeBackground(options.background);
-  const format = normalizeOutputFormat(
-    options.outputFormat ?? options.output_format,
-  );
+  const format = normalizeOutputFormat(outputFormat);
   if (background === "transparent" && !["png", "webp"].includes(format))
     throw new Error("transparent background requires png or webp output.");
   const input = {
@@ -418,7 +522,7 @@ export async function saveImageOutput(
     options.fetchImpl || fetch,
     imageUrl,
     {},
-    options.downloadTimeoutMs || 15000,
+    options.downloadTimeoutMs || DEFAULT_DOWNLOAD_TIMEOUT_MS,
   );
   const response = downloaded.response;
   if (!response.ok)
@@ -524,9 +628,12 @@ export async function fetchPricingEstimate(payload, options = {}) {
   if (!response.ok)
     throw new Error(`Pricing check failed with HTTP ${response.status}.`);
   const body = parseJsonText(response._bodyText);
-  // The public pricing list keys these models by their canonical routed ID
-  // (`gpt-image-2.5-flare@pro`), while the task request keeps the bare model ID.
-  const pricingNames = [payload.model, `${payload.model}@pro`];
+  // The public pricing list keys the quality-tier models by their canonical
+  // routed ID (`gpt-image-2.5-flare@pro`), while the task request keeps the
+  // bare model ID. Mode models are listed under their exact ID.
+  const pricingNames = isModeModel(payload.model)
+    ? [payload.model]
+    : [payload.model, `${payload.model}@pro`];
   const row = body?.data?.find((entry) => pricingNames.includes(entry?.model_name));
   if (!row)
     throw new Error(`Current public pricing does not list ${payload.model} (checked ${pricingNames.join(", ")}).`);
@@ -630,6 +737,56 @@ export async function checkLiveContract(options = {}) {
       imageUrlsMax: props.image_urls?.maxItems,
     });
   }
+  for (const model of Object.values(MODE_MODELS)) {
+    const response = await boundedFetch(
+      fetchImpl,
+      `${siteUrl}/api/models/content?name=${encodeURIComponent(model)}`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!response.ok)
+      throw new Error(
+        `Contract check failed for ${model}: HTTP ${response.status}.`,
+      );
+    const schema = parseJsonText(response._bodyText)?.data?.input_schema;
+    const props = schema?.properties || {};
+    const i2i = model.endsWith(`/${IMAGE_TO_IMAGE}`);
+    const sorted = (values) => JSON.stringify([...(values || [])].sort());
+    const expectedProps = [
+      "aspect_ratio",
+      "background",
+      "model",
+      "prompt",
+      "resolution",
+      ...(i2i ? ["image_urls"] : []),
+    ];
+    const ok =
+      !!schema &&
+      !!props.model?.enum?.includes(model) &&
+      sorted(Object.keys(props)) === sorted(expectedProps) &&
+      sorted(schema.required) ===
+        sorted(["model", "prompt", ...(i2i ? ["image_urls"] : [])]) &&
+      props.prompt?.minLength === 1 &&
+      props.prompt?.maxLength === MODE_PROMPT_MAX &&
+      JSON.stringify(props.aspect_ratio?.enum) ===
+        JSON.stringify([...MODE_ASPECT_RATIOS]) &&
+      props.aspect_ratio?.default === "auto" &&
+      JSON.stringify(props.resolution?.enum) ===
+        JSON.stringify([...RESOLUTIONS]) &&
+      props.resolution?.default === "1K" &&
+      sorted(props.background?.enum) === sorted([...BACKGROUNDS]) &&
+      props.background?.default === undefined &&
+      (!i2i ||
+        (props.image_urls?.minItems === 1 &&
+          props.image_urls?.maxItems === MAX_IMAGES));
+    checks.push({
+      model,
+      ok,
+      wrapperModelProperty: !!props.model?.enum?.includes(model),
+      required: schema?.required || [],
+      properties: Object.keys(props),
+      imageUrlsMax: props.image_urls?.maxItems,
+    });
+  }
   return {
     ok: checks.every((c) => c.ok),
     checkedAt: new Date().toISOString(),
@@ -720,6 +877,8 @@ export function parseArgs(argv) {
   const values = {
     "--prompt": "prompt",
     "--model": "model",
+    "--family": "family",
+    "--resolution": "resolution",
     "--aspect-ratio": "aspectRatio",
     "--aspect": "aspectRatio",
     "--quality": "quality",
@@ -757,7 +916,18 @@ export function parseArgs(argv) {
   return o;
 }
 export function usage() {
-  return `HiAPI GPT Image 2.5 skill\n\nPreflight: node scripts/hiapi-gpt-image-2-5.mjs --model gpt-image-2.5-flare --prompt "..." --dry-run --estimate\nCreate: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..."\nRecover: node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id <task-id>\nOptions: --model <gpt-image-2.5-flare|gpt-image-2.5-sunburst>, --image-url <url> (repeatable, max 16), --aspect-ratio <schema enum>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>, --dry-run, --estimate, --no-wait, --no-save, --idempotency-key <key>, --resume-task-id <id>`;
+  return `HiAPI GPT Image 2.5 skill
+
+Default route: omit --model. Without --image-url the CLI uses gpt-image-2.5-<family>/text-to-image; with --image-url it uses gpt-image-2.5-<family>/image-to-image. Family defaults to flare.
+
+Preflight: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --dry-run --estimate
+Create: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --resolution 2K
+Edit: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --image-url <url>
+Recover: node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id <task-id>
+
+Mode route options: --family <flare|sunburst>, --image-url <url|data URI> (repeatable, max 16), --aspect-ratio <auto|1:1|3:2|2:3|4:3|3:4|16:9|9:16|21:9|27:16|16:27|9:8|8:9>, --resolution <1K|2K|4K>, --background <auto|transparent|opaque> (1K only)
+Quality-tier route (explicit only): --model <gpt-image-2.5-flare|gpt-image-2.5-sunburst>, --image-url <url>, --aspect-ratio <schema enum or pixel size>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
+Common: --model <exact ID>, --dry-run, --estimate, --no-wait, --no-save, --idempotency-key <key>, --resume-task-id <id>, --output-dir <dir>, --timeout-minutes <n>`;
 }
 function timestamp() {
   return new Date()
