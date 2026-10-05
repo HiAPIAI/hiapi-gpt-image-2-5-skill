@@ -21,10 +21,12 @@ Published skill package. Install with the Agent Skills CLI after verifying the r
 
 | Route | Model IDs | Selected when | Pricing basis | Controls |
 | --- | --- | --- | --- | --- |
-| Mode (default) | `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image` | `--model` omitted; mode follows whether `--image-url` is present; `--family` defaults to `flare` | per image by `resolution` (1K/2K/4K) | prompt ≤ 20,000 chars, 13 aspect ratios (default `auto`), `resolution` (default `1K`), optional `background` (1K only) |
-| Pro (explicit) | `gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro` | `--route pro` (with `--family`), or `--model` names one of these IDs | per image by `quality` | prompt ≤ 32,000 chars, ratios or pixel sizes, six quality values, background, PNG/JPEG/WebP output |
+| Mode (default) | `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image` | `--model` omitted; mode follows whether `--image-url` is present; `--family` defaults to `flare` | per image by `resolution` (1K/2K/4K) | prompt ≤ 8,000 chars, 13 aspect ratios (default `auto`), `resolution` (default `1K`), optional `background` (1K only) |
+| Pro (explicit) | `gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro` | `--route pro` (with `--family`), or `--model` names one of these IDs | per image by `quality` | prompt ≤ 8,000 chars, ratios or pixel sizes, six quality values, background, PNG/JPEG/WebP output |
 
 Each accepted async task returns one image. The CLI rejects `--quality`/`--output-format` on the mode route and `--resolution` on the pro route instead of silently dropping them. The skill makes no quality, speed, or visual ranking between the routes or between Flare and Sunburst.
+
+All six model IDs accept prompts up to 8,000 characters. The CLI trims surrounding whitespace before validation and counts UTF-16 code units with JavaScript `string.length`: a BMP character counts as one unit; an astral emoji counts as two. The CLI rejects longer prompts before task submission. Keep every prompt in the examples below within this limit.
 
 ## Installation
 

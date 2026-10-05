@@ -178,7 +178,7 @@ test("mode route rejects quality-tier fields and cross-field violations", () => 
     /only at resolution 1K/,
   );
   assert.throws(() => buildImagePayload({ prompt: "p", aspectRatio: "1536x1024" }), /Unsupported aspect ratio/);
-  assert.throws(() => buildImagePayload({ prompt: "x".repeat(20001) }), /at most 20000/);
+  assert.throws(() => buildImagePayload({ prompt: "x".repeat(8001) }), /at most 8000/);
   assert.throws(() => buildImagePayload({ prompt: "p", model: PRO_MODELS.flare, resolution: "1K" }), /priced by quality/);
   assert.throws(
     () => buildImagePayload({ prompt: "p", model: MODE_MODELS.flareImageToImage }),
