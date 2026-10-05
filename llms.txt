@@ -2,6 +2,8 @@
 
 HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`, plus the pro route `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro` for quality tiers — covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
 
+All six model IDs require prompts within 8,000 UTF-16 code units after trimming surrounding whitespace; longer prompts are rejected locally.
+
 - [README](README.md): installation, scenarios, examples, and FAQ
 - [Skill instructions](SKILL.md): invocation boundary and workflow
 - [API contract](references/api.md): fields, enums, defaults, pricing snapshot

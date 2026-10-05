@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.3.0";
+export const SKILL_VERSION = "0.3.1";
 // Family base names. Never sent as a model ID: the bare IDs are not a
 // supported request route; use a mode ID or the `@pro` route instead.
 export const FAMILIES = Object.freeze({
@@ -84,8 +84,10 @@ export const MODE_ASPECT_RATIOS = new Set([
   "8:9",
 ]);
 export const RESOLUTIONS = new Set(["1K", "2K", "4K"]);
-export const MODE_PROMPT_MAX = 20000;
-export const QUALITY_PROMPT_MAX = 32000;
+export const PROMPT_MAX = 8000;
+// Preserve the route-specific exports; all six model IDs share one limit.
+export const MODE_PROMPT_MAX = PROMPT_MAX;
+export const QUALITY_PROMPT_MAX = PROMPT_MAX;
 export const FORMATS = new Set(["png", "jpeg", "webp"]);
 export const MAX_IMAGES = 16;
 export const POLL_INTERVAL_MS = 3000;
@@ -239,13 +241,14 @@ export function buildImagePayload(options = {}) {
     throw new Error(
       "A non-empty prompt is required for a new GPT Image 2.5 task.",
     );
+  // Keep the existing trimmed JavaScript string.length (UTF-16) semantics.
+  if (prompt.length > PROMPT_MAX)
+    throw new Error(`prompt must be at most ${PROMPT_MAX} characters.`);
   const rawUrls = options.imageUrls ?? options.image_urls;
   const hasImages = Array.isArray(rawUrls) ? rawUrls.length > 0 : !!rawUrls;
   const model = resolveModel(options, hasImages);
   const outputFormat = options.outputFormat ?? options.output_format;
   if (isModeModel(model)) {
-    if (prompt.length > MODE_PROMPT_MAX)
-      throw new Error(`prompt must be at most ${MODE_PROMPT_MAX} characters.`);
     if (options.quality != null || outputFormat != null)
       throw new Error(
         `${model} is priced by resolution and does not accept quality or output_format; use --resolution, or --route pro for quality tiers.`,
@@ -270,8 +273,6 @@ export function buildImagePayload(options = {}) {
     }
     return { model, input };
   }
-  if (prompt.length > QUALITY_PROMPT_MAX)
-    throw new Error(`prompt must be at most ${QUALITY_PROMPT_MAX} characters.`);
   if (options.resolution != null)
     throw new Error(
       `${model} is priced by quality and does not accept resolution; use --quality, or drop --route pro for the resolution-priced mode route.`,
@@ -720,7 +721,7 @@ export async function checkLiveContract(options = {}) {
       props.image_urls?.minItems === 1 &&
       props.image_urls?.maxItems === 16 &&
       props.prompt?.minLength === 1 &&
-      props.prompt?.maxLength === 32000 &&
+      props.prompt?.maxLength === PROMPT_MAX &&
       JSON.stringify(props.aspect_ratio?.enum) ===
         JSON.stringify([
           "1:1",
@@ -758,6 +759,9 @@ export async function checkLiveContract(options = {}) {
       required: schema?.required || [],
       properties: Object.keys(props),
       imageUrlsMax: props.image_urls?.maxItems,
+      promptMinLength: props.prompt?.minLength,
+      promptMaxLength: props.prompt?.maxLength,
+      expectedPromptMaxLength: PROMPT_MAX,
     });
   }
   for (const model of Object.values(MODE_MODELS)) {
@@ -789,7 +793,7 @@ export async function checkLiveContract(options = {}) {
       sorted(schema.required) ===
         sorted(["model", "prompt", ...(i2i ? ["image_urls"] : [])]) &&
       props.prompt?.minLength === 1 &&
-      props.prompt?.maxLength === MODE_PROMPT_MAX &&
+      props.prompt?.maxLength === PROMPT_MAX &&
       JSON.stringify(props.aspect_ratio?.enum) ===
         JSON.stringify([...MODE_ASPECT_RATIOS]) &&
       props.aspect_ratio?.default === "auto" &&
@@ -808,6 +812,9 @@ export async function checkLiveContract(options = {}) {
       required: schema?.required || [],
       properties: Object.keys(props),
       imageUrlsMax: props.image_urls?.maxItems,
+      promptMinLength: props.prompt?.minLength,
+      promptMaxLength: props.prompt?.maxLength,
+      expectedPromptMaxLength: PROMPT_MAX,
     });
   }
   return {
@@ -951,6 +958,7 @@ Recover: node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id <task-id>
 
 Mode route options: --family <flare|sunburst>, --image-url <url|data URI> (repeatable, max 16), --aspect-ratio <auto|1:1|3:2|2:3|4:3|3:4|16:9|9:16|21:9|27:16|16:27|9:8|8:9>, --resolution <1K|2K|4K>, --background <auto|transparent|opaque> (1K only)
 Pro route: --route pro [--family <flare|sunburst>] or --model <gpt-image-2.5-flare@pro|gpt-image-2.5-sunburst@pro>, --image-url <url>, --aspect-ratio <schema enum or pixel size>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
+Prompt: --prompt <text> is required for new tasks; 1–${PROMPT_MAX} UTF-16 code units after trimming surrounding whitespace (all routes).
 Common: --model <exact ID>, --dry-run, --estimate, --no-wait, --no-save, --idempotency-key <key>, --resume-task-id <id>, --output-dir <dir>, --timeout-minutes <n>`;
 }
 function timestamp() {

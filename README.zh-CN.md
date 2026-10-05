@@ -21,10 +21,12 @@
 
 | 路线 | 模型 ID | 何时选用 | 计价依据 | 参数 |
 | --- | --- | --- | --- | --- |
-| 模式（默认） | `gpt-image-2.5-flare/text-to-image`、`gpt-image-2.5-flare/image-to-image`、`gpt-image-2.5-sunburst/text-to-image`、`gpt-image-2.5-sunburst/image-to-image` | 省略 `--model`；按是否传 `--image-url` 选模式；`--family` 默认 `flare` | 按 `resolution`（1K/2K/4K）每张计价 | 提示词 ≤ 20,000 字符，13 种比例（默认 `auto`），`resolution`（默认 `1K`），可选 `background`（仅 1K） |
-| Pro（需明确指定） | `gpt-image-2.5-flare@pro`、`gpt-image-2.5-sunburst@pro` | `--route pro`（配合 `--family`），或 `--model` 写明这两个 ID 之一 | 按 `quality` 每张计价 | 提示词 ≤ 32,000 字符，比例或像素尺寸，6 个质量值，背景，PNG/JPEG/WebP 输出 |
+| 模式（默认） | `gpt-image-2.5-flare/text-to-image`、`gpt-image-2.5-flare/image-to-image`、`gpt-image-2.5-sunburst/text-to-image`、`gpt-image-2.5-sunburst/image-to-image` | 省略 `--model`；按是否传 `--image-url` 选模式；`--family` 默认 `flare` | 按 `resolution`（1K/2K/4K）每张计价 | 提示词 ≤ 8,000 字符，13 种比例（默认 `auto`），`resolution`（默认 `1K`），可选 `background`（仅 1K） |
+| Pro（需明确指定） | `gpt-image-2.5-flare@pro`、`gpt-image-2.5-sunburst@pro` | `--route pro`（配合 `--family`），或 `--model` 写明这两个 ID 之一 | 按 `quality` 每张计价 | 提示词 ≤ 8,000 字符，比例或像素尺寸，6 个质量值，背景，PNG/JPEG/WebP 输出 |
 
 每个已接受的异步任务返回一张图片。模式路线传 `--quality`/`--output-format`、pro 路线传 `--resolution` 都会直接报错，不会静默丢弃。技能不对两条路线或 Flare/Sunburst 作未经验证的质量、速度或视觉排名。
+
+六个模型 ID 的提示词上限统一为 8,000 字符。CLI 先去除首尾空白，再按 JavaScript `string.length` 计算 UTF-16 码元：常用汉字计 1，补充平面 emoji 计 2。超过上限会在提交任务前被拒绝。下方示例的提示词均需遵守此上限。
 
 ## 安装
 
