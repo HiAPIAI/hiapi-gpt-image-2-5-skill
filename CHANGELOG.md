@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — 2026-10-05
+
+- Unified the prompt limit to 8,000 across all four mode IDs and both `@pro` IDs, matching the public schemas verified on 2026-10-05.
+- Retained trimmed JavaScript `string.length` (UTF-16 code unit) validation and added boundary coverage for every route.
+- Live contract checks now report actual and expected prompt lengths while retaining all other contract assertions.
+- Updated the skill instructions, CLI help, English/Chinese README, and API reference with the shared limit.
+- **Hard upgrade**: `latestVersion` and `minimumVersion` are 0.3.1. Older copies must upgrade before new paid creation; preflight and existing-task recovery remain available.
+
 ## 0.3.0 — 2026-09-29
 
 - Quality tiers now go through the pro route: `--route pro` (with `--family flare|sunburst`) or `--model gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`. The task request sends the `@pro` ID.
