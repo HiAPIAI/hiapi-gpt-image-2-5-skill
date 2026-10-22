@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.3.1";
+export const SKILL_VERSION = "0.3.2";
 // Family base names. Never sent as a model ID: the bare IDs are not a
 // supported request route; use a mode ID or the `@pro` route instead.
 export const FAMILIES = Object.freeze({
@@ -38,7 +38,7 @@ export const DEFAULT_SKILLS_MANIFEST_URL =
 export const DEFAULT_REPOSITORY_POLICY_URL =
   "https://raw.githubusercontent.com/HiAPIAI/hiapi-gpt-image-2-5-skill/main/update-policy.json";
 export const UPDATE_COMMAND =
-  'npx --yes --package=github:HiAPIAI/hiapi-gpt-image-2-5-skill hiapi-gpt-image-2-5-install --target="${AGENT_SKILLS_DIR:-$HOME/.codex/skills}" --force';
+  'for d in "$HOME/.claude/skills" "$HOME/.codex/skills"; do if [ -d "$d" ]; then npx --yes --package=github:HiAPIAI/hiapi-gpt-image-2-5-skill hiapi-gpt-image-2-5-install --target="$d" --force; fi; done';
 export const ASPECT_RATIOS = new Set([
   "1:1",
   "3:2",
@@ -84,7 +84,11 @@ export const MODE_ASPECT_RATIOS = new Set([
   "8:9",
 ]);
 export const RESOLUTIONS = new Set(["1K", "2K", "4K"]);
-export const PROMPT_MAX = 8000;
+// Public `input.prompt.maxLength` for all six model IDs (raised on
+// 2026-10-13). This is the character limit the API enforces; text-to-image
+// additionally has a separate internal o200k token cap that returns
+// PROMPT_TOO_LONG. Image-to-image has no token cap.
+export const PROMPT_MAX = 20000;
 // Preserve the route-specific exports; all six model IDs share one limit.
 export const MODE_PROMPT_MAX = PROMPT_MAX;
 export const QUALITY_PROMPT_MAX = PROMPT_MAX;

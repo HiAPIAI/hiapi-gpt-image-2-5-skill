@@ -2,7 +2,9 @@
 
 This skill sends `POST https://api.hiapi.ai/v1/tasks` with `Authorization: Bearer $HIAPI_API_KEY`, `Content-Type: application/json`, and an `Idempotency-Key` no longer than 255 UTF-8 bytes. `model` is top level; parameters sit inside `input`.
 
-All six model IDs have a public `input.prompt` schema of `minLength: 1`, `maxLength: 8000` (verified 2026-10-05). The CLI retains its existing counting semantics: trim surrounding whitespace, then validate JavaScript `string.length` (UTF-16 code units). BMP characters count as one unit; astral characters such as `😀` count as two. Empty or over-limit prompts are rejected before task creation.
+All six model IDs have a public `input.prompt` schema of `minLength: 1`, `maxLength: 20000` (raised on 2026-10-13; verified 2026-10-23). The CLI retains its existing counting semantics: trim surrounding whitespace, then validate JavaScript `string.length` (UTF-16 code units). BMP characters count as one unit; astral characters such as `😀` count as two. Empty or over-limit prompts are rejected before task creation; a request that still exceeds the limit reaches the API as `INVALID_REQUEST` with a `maxLength` message.
+
+Text-to-image has an additional internal o200k token cap. A prompt under 20,000 characters can still exceed it (for example, dense CJK text), and the task returns `PROMPT_TOO_LONG`. Image-to-image does not have this token cap. Neither limit is billing-related; both fail before an image is produced.
 
 ## Model selection
 
@@ -36,7 +38,7 @@ Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/imag
 
 | Field | Type | Default | Accepted values / constraint |
 | --- | --- | --- | --- |
-| `input.prompt` | string | — (required) | 1–8,000 characters |
+| `input.prompt` | string | — (required) | 1–20,000 characters |
 | `input.image_urls` | string[] | — | image-to-image only, required there: 1–16 JPEG/PNG/WebP, each ≤ 20 MP and ≤ 30 MB, public directly-downloadable HTTP(S) URL or data URI; forbidden for text-to-image |
 | `input.aspect_ratio` | enum | `auto` | `auto`, `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `27:16`, `16:27`, `9:8`, `8:9` |
 | `input.resolution` | enum | `1K` | `1K`, `2K`, `4K` |
@@ -61,7 +63,7 @@ Selected with `--route pro` (plus `--family sunburst` when requested) or `--mode
 }
 ```
 
-`input.prompt` is required, 1–8,000 characters. Omit `input.image_urls` for text-to-image; for editing provide 1–16 non-empty public `http://` or `https://` URLs without embedded credentials. Explain the role and order of multiple references in the prompt.
+`input.prompt` is required, 1–20,000 characters. Omit `input.image_urls` for text-to-image; for editing provide 1–16 non-empty public `http://` or `https://` URLs without embedded credentials. Explain the role and order of multiple references in the prompt.
 
 | Field | Type | Default | Accepted values / constraint |
 | --- | --- | --- | --- |
