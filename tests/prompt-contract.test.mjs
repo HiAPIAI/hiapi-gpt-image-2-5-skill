@@ -24,22 +24,22 @@ const routeInputs = ALL_MODEL_IDS.flatMap((model) => {
 
 for (const options of routeInputs) {
   const label = `${options.model} (${options.imageUrls ? "editing" : "generation"})`;
-  test(`${label} accepts 8000 and rejects 8001`, () => {
+  test(`${label} accepts 20000 and rejects 20001`, () => {
     for (const character of ["x", "画"]) {
-      const prompt = character.repeat(8000);
+      const prompt = character.repeat(20000);
       assert.equal(buildImagePayload({ ...options, prompt }).input.prompt, prompt);
       assert.throws(
         () => buildImagePayload({ ...options, prompt: prompt + character }),
-        /prompt must be at most 8000 characters\./,
+        /prompt must be at most 20000 characters\./,
       );
     }
   });
 
   test(`${label} retains trimmed UTF-16 counting and rejects blank prompts`, () => {
-    const prompt = "😀".repeat(4000);
-    assert.equal(prompt.length, 8000);
+    const prompt = "😀".repeat(10000);
+    assert.equal(prompt.length, 20000);
     assert.equal(buildImagePayload({ ...options, prompt: ` \n${prompt}\t ` }).input.prompt, prompt);
-    assert.throws(() => buildImagePayload({ ...options, prompt: prompt + "x" }), /at most 8000/);
+    assert.throws(() => buildImagePayload({ ...options, prompt: prompt + "x" }), /at most 20000/);
     assert.throws(() => buildImagePayload({ ...options, prompt: " \n\t " }), /non-empty prompt/);
   });
 }
@@ -55,9 +55,9 @@ test("over-limit prompts never create a task on any route", async () => {
   };
   for (const options of routeInputs) {
     await assert.rejects(generateImage(
-      { ...options, prompt: "x".repeat(8001), wait: false, fetchImpl },
+      { ...options, prompt: "x".repeat(20001), wait: false, fetchImpl },
       { apiKey: "test-key", baseUrl: "https://mock.local" },
-    ), /at most 8000/);
+    ), /at most 20000/);
   }
   assert.equal(posts, 0);
 });
@@ -81,14 +81,14 @@ test("all six captured schemas pass and report the actual prompt limit", async (
   for (const check of result.checks) {
     assert.equal(check.ok, true);
     assert.equal(check.promptMinLength, 1);
-    assert.equal(check.promptMaxLength, 8000);
-    assert.equal(check.expectedPromptMaxLength, 8000);
+    assert.equal(check.promptMaxLength, 20000);
+    assert.equal(check.expectedPromptMaxLength, 20000);
   }
 });
 
 for (const model of ALL_MODEL_IDS) {
   test(`${model} rejects stale, missing, and off-by-one schema prompt limits`, async () => {
-    for (const maxLength of [7999, 8001, 20000, 32000, undefined]) {
+    for (const maxLength of [19999, 20001, 10000, 40000, undefined]) {
       const snapshot = structuredClone(schemas);
       snapshot[model].properties.prompt.maxLength = maxLength;
       const result = await checkLiveContract({ fetchImpl: schemaFetch(snapshot) });
@@ -99,7 +99,7 @@ for (const model of ALL_MODEL_IDS) {
   });
 }
 
-test("8000 prompt limits do not hide other contract violations", async () => {
+test("20000 prompt limits do not hide other contract violations", async () => {
   for (const model of ALL_MODEL_IDS) {
     for (const mutate of [
       (schema) => { schema.required = []; },

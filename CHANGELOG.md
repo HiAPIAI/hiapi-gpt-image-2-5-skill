@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 — 2026-10-23
+
+- Raised the local prompt limit from 8,000 to 20,000 characters on all four mode IDs and both `@pro` IDs, matching the public schema relaxed on 2026-10-13. Prompts of 8,001–20,000 characters are now accepted instead of being rejected locally.
+- Documented the two limits separately: the 20,000-character `input.prompt.maxLength` (over-limit requests return `INVALID_REQUEST` with a `maxLength` message) and the separate internal o200k token cap on text-to-image (returns `PROMPT_TOO_LONG`; not applicable to image-to-image).
+- Moved the `(default)` marker in the skill description from the Sunburst image-to-image ID to the Flare mode pair, matching the body and the CLI default (`--family flare`).
+- Update commands now install into every detected client directory (`$HOME/.claude/skills` and `$HOME/.codex/skills`) instead of only `${AGENT_SKILLS_DIR:-$HOME/.codex/skills}`.
+- **Soft upgrade**: `latestVersion` is 0.3.2 and `minimumVersion` remains 0.3.1. Version 0.3.1 sends valid requests and only over-restricts prompt length, so it keeps creating tasks until the user updates.
+
 ## 0.3.1 — 2026-10-05
 
 - Unified the prompt limit to 8,000 across all four mode IDs and both `@pro` IDs, matching the public schemas verified on 2026-10-05.

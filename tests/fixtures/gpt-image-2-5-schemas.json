@@ -69,8 +69,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "Describe the image to generate. Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "Describe the image to generate. Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "Prompt",
         "type": "string"
@@ -174,8 +174,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "Describe how to generate or edit from the source images. Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "Describe how to generate or edit from the source images. Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "Prompt",
         "type": "string"
@@ -269,8 +269,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "Describe the image to generate. Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "Describe the image to generate. Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "Prompt",
         "type": "string"
@@ -374,8 +374,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "Describe how to generate or edit from the source images. Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "Describe how to generate or edit from the source images. Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "Prompt",
         "type": "string"
@@ -472,8 +472,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "描述要生成的画面，或说明需要对参考图片执行的修改。 Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "描述要生成的画面，或说明需要对参考图片执行的修改。 Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "提示词",
         "type": "string"
@@ -571,8 +571,8 @@
         "type": "string"
       },
       "prompt": {
-        "description": "描述要生成的画面，或说明需要对参考图片执行的修改。 Max 8000 characters.",
-        "maxLength": 8000,
+        "description": "描述要生成的画面，或说明需要对参考图片执行的修改。 Max 20000 characters.",
+        "maxLength": 20000,
         "minLength": 1,
         "title": "提示词",
         "type": "string"

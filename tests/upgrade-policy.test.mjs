@@ -12,23 +12,26 @@ const policy = await readJson("../update-policy.json");
 const central = { skills: [policy] };
 const response = (body) => new Response(JSON.stringify(body));
 
-test("0.3.1 hard-upgrade metadata agrees across package, runtime, and manifest", async () => {
-  assert.equal((await readJson("../package.json")).version, "0.3.1");
-  assert.equal((await readJson("../.hiapi-skill-release.json")).version, "0.3.1");
-  assert.equal(SKILL_VERSION, "0.3.1");
-  assert.equal(policy.version, "0.3.1");
-  assert.equal(policy.updatePolicy.latestVersion, "0.3.1");
+test("0.3.2 soft-upgrade metadata agrees across package, runtime, and manifest", async () => {
+  assert.equal((await readJson("../package.json")).version, "0.3.2");
+  assert.equal((await readJson("../.hiapi-skill-release.json")).version, "0.3.2");
+  assert.equal(SKILL_VERSION, "0.3.2");
+  assert.equal(policy.version, "0.3.2");
+  assert.equal(policy.updatePolicy.latestVersion, "0.3.2");
   assert.equal(policy.updatePolicy.minimumVersion, "0.3.1");
 });
 
-test("published policy requires 0.3.0 to upgrade and accepts 0.3.1", async () => {
+test("published policy requires 0.3.0 to upgrade and only notices 0.3.1", async () => {
   const fetchImpl = async () => response(central);
   const old = await checkSkillUpdate({ currentVersion: "0.3.0", fetchImpl });
   assert.equal(old.status, "required");
   assert.equal(old.minimumVersion, "0.3.1");
-  assert.match(old.message, /8,000-character/);
-  assert.equal((await checkSkillUpdate({ currentVersion: "0.3.1", fetchImpl })).status, "current");
-  await assert.rejects(warnOrRequireSkillUpdate({ currentVersion: "0.3.0", fetchImpl }), /Update to 0.3.1/);
+  assert.match(old.message, /Update to 0\.3\.2/);
+  const soft = await checkSkillUpdate({ currentVersion: "0.3.1", fetchImpl });
+  assert.equal(soft.status, "available");
+  assert.match(soft.message, /20,000 characters/);
+  assert.equal((await checkSkillUpdate({ currentVersion: "0.3.2", fetchImpl })).status, "current");
+  await assert.rejects(warnOrRequireSkillUpdate({ currentVersion: "0.3.0", fetchImpl }), /Update to 0\.3\.2/);
   assert.equal((await warnOrRequireSkillUpdate({ currentVersion: "0.3.0", fetchImpl, allowRecovery: true })).status, "required");
 });
 
