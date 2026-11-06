@@ -1,11 +1,11 @@
 {
   "id": "hiapi-gpt-image-2-5",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "updatePolicy": {
-    "latestVersion": "0.3.2",
+    "latestVersion": "0.3.3",
     "minimumVersion": "0.3.1",
     "updateCommand": "for d in \"$HOME/.claude/skills\" \"$HOME/.codex/skills\"; do if [ -d \"$d\" ]; then npx --yes --package=github:HiAPIAI/hiapi-gpt-image-2-5-skill hiapi-gpt-image-2-5-install --target=\"$d\" --force; fi; done",
-    "notice": "GPT Image 2.5 skill 0.3.2 accepts prompts up to 20,000 characters on all six model IDs.",
-    "requiredNotice": "This GPT Image 2.5 skill predates the 0.3.0 routing contract. Update to 0.3.2 before creating new image tasks. Non-billing preflight and existing-task recovery remain available."
+    "notice": "GPT Image 2.5 skill 0.3.3 fixes price estimates and contract checks: public endpoints moved to api.hiapi.ai.",
+    "requiredNotice": "This GPT Image 2.5 skill predates the 0.3.0 routing contract. Update to 0.3.3 before creating new image tasks. Non-billing preflight and existing-task recovery remain available."
   }
 }

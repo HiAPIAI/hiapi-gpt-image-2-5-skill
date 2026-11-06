@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.3.2";
+export const SKILL_VERSION = "0.3.3";
 // Family base names. Never sent as a model ID: the bare IDs are not a
 // supported request route; use a mode ID or the `@pro` route instead.
 export const FAMILIES = Object.freeze({
@@ -32,7 +32,7 @@ export const ALL_MODEL_IDS = Object.freeze([
 export const TEXT_TO_IMAGE = "text-to-image";
 export const IMAGE_TO_IMAGE = "image-to-image";
 export const DEFAULT_BASE_URL = "https://api.hiapi.ai";
-export const DEFAULT_SITE_URL = "https://www.hiapi.ai";
+export const DEFAULT_SITE_URL = "https://api.hiapi.ai";
 export const DEFAULT_SKILLS_MANIFEST_URL =
   "https://raw.githubusercontent.com/HiAPIAI/hiapi-skills/main/skills.json";
 export const DEFAULT_REPOSITORY_POLICY_URL =

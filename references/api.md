@@ -76,7 +76,7 @@ CLI flags: `--route pro`, `--family`, `--model`, repeated `--image-url`, `--aspe
 
 ## Pricing and estimates
 
-`--estimate` reads `https://www.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. The `@pro` models are listed under `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, the same IDs the task request sends, and priced by `quality`. The same snapshot observed `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
+`--estimate` reads `https://api.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. The `@pro` models are listed under `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, the same IDs the task request sends, and priced by `quality`. The same snapshot observed `low` 0.0172, `medium` 0.0672, `high` 0.1829, `xhigh` 0.3572, `max` 0.7143, and `auto` 0.3572. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
 
 ## Direct API recovery and optional features
 

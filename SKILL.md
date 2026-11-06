@@ -5,7 +5,7 @@ description: Use only for HiAPI GPT Image 2.5 image generation and editing with 
 
 # HiAPI GPT Image 2.5
 
-This released 0.3.2 skill wraps HiAPI's unified async image API for six GPT Image 2.5 model IDs in two routes:
+This released 0.3.3 skill wraps HiAPI's unified async image API for six GPT Image 2.5 model IDs in two routes:
 
 - **Mode route (default).** When `--model` is omitted, the CLI selects `gpt-image-2.5-<family>/text-to-image` without reference images and `gpt-image-2.5-<family>/image-to-image` with them. `--family` is `flare` by default; use `sunburst` only when the caller asks for Sunburst. Priced per image by `resolution` (`1K`/`2K`/`4K`).
 - **Pro route (`--route pro`).** `gpt-image-2.5-flare@pro` or `gpt-image-2.5-sunburst@pro`, used only when the caller asks for pro, quality tiers, or a PNG/JPEG/WebP output choice. Priced per image by `quality`.

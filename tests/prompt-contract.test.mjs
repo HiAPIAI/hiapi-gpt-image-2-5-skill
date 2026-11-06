@@ -3,13 +3,15 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   ALL_MODEL_IDS,
+  DEFAULT_SITE_URL,
   buildImagePayload,
   checkLiveContract,
+  fetchPricingEstimate,
   generateImage,
 } from "../scripts/lib/gpt-image-2-5.mjs";
 
 // Public no-key schemas captured 2026-10-05 from
-// https://www.hiapi.ai/api/models/content?name=<model ID>.
+// https://api.hiapi.ai/api/models/content?name=<model ID>.
 const schemas = JSON.parse(await readFile(
   new URL("./fixtures/gpt-image-2-5-schemas.json", import.meta.url), "utf8",
 ));
@@ -118,4 +120,26 @@ test("20000 prompt limits do not hide other contract violations", async () => {
       assert.deepEqual(result.checks.filter((c) => !c.ok).map((c) => c.model), [model]);
     }
   }
+});
+
+test("default public endpoints resolve to the api host, not the www site", async () => {
+  assert.equal(DEFAULT_SITE_URL, "https://api.hiapi.ai");
+  const requested = [];
+  const fetchImpl = async (rawUrl) => {
+    requested.push(String(rawUrl));
+    return new Response(JSON.stringify({ data: { input_schema: schemas[ALL_MODEL_IDS[0]] } }));
+  };
+  const saved = process.env.HIAPI_SITE_URL;
+  delete process.env.HIAPI_SITE_URL;
+  try {
+    await checkLiveContract({ fetchImpl }).catch(() => {});
+    await fetchPricingEstimate(buildImagePayload({ prompt: "p" }), { fetchImpl }).catch(() => {});
+  } finally {
+    if (saved !== undefined) process.env.HIAPI_SITE_URL = saved;
+  }
+  assert.ok(requested.length > 0, "requests were issued");
+  assert.ok(
+    requested.every((url) => url.startsWith("https://api.hiapi.ai/api/")),
+    requested.join(", "),
+  );
 });

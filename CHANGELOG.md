@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3 — 2026-11-07
+
+- Read the public no-key pricing and model metadata from `https://api.hiapi.ai`. `DEFAULT_SITE_URL` now points at the API host, which keeps `--estimate` and the live contract check working; `https://www.hiapi.ai/api/...` now redirects to `https://hiapi.ai/api/...` and returns 404.
+- **Soft upgrade**: `latestVersion` is 0.3.3 and `minimumVersion` remains 0.3.1.
+
 ## 0.3.2 — 2026-10-23
 
 - Raised the local prompt limit from 8,000 to 20,000 characters on all four mode IDs and both `@pro` IDs, matching the public schema relaxed on 2026-10-13. Prompts of 8,001–20,000 characters are now accepted instead of being rejected locally.
