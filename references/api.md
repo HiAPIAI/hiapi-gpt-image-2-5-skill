@@ -22,7 +22,7 @@ The bare IDs `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` are not a suppor
 
 ## Mode route (default)
 
-Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5), [Flare image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5), [Sunburst text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5), [Sunburst image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5). All four share one schema; image-to-image additionally requires `image_urls`.
+Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/), [Flare image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/), [Sunburst text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/), [Sunburst image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/). All four share one schema; image-to-image additionally requires `image_urls`.
 
 ```json
 {
@@ -48,7 +48,7 @@ There is no `quality`, `output_format`, or `n` on this route. CLI flags: `--fami
 
 ## Pro route (`@pro`, quality tiers)
 
-Selected with `--route pro` (plus `--family sunburst` when requested) or `--model gpt-image-2.5-flare@pro` / `--model gpt-image-2.5-sunburst@pro`. The live public schema for each `@pro` ID is checked by `npm run check:contract`; see the [pricing page](https://www.hiapi.ai/en/pricing?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5) for current quality prices.
+Selected with `--route pro` (plus `--family sunburst` when requested) or `--model gpt-image-2.5-flare@pro` / `--model gpt-image-2.5-sunburst@pro`. The live public schema for each `@pro` ID is checked by `npm run check:contract`; see the [pricing page](https://www.hiapi.ai/en/pricing) for current quality prices.
 
 ```json
 {
@@ -98,4 +98,4 @@ The CLI does not expose callback or persistent-storage flags. When the account/A
 }
 ```
 
-See the [Unified Async API create-task reference](https://www.hiapi.ai/docs/async-api/create/?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5). `callback` and `storage` are opt-in direct-API features; persistent storage may incur additional storage charges, so check the current pricing and account contract. Verify callback authenticity and the stored output before marking delivery complete. This CLI intentionally has no flags for them.
+See the [Unified Async API create-task reference](https://www.hiapi.ai/docs/async-api/create/). `callback` and `storage` are opt-in direct-API features; persistent storage may incur additional storage charges, so check the current pricing and account contract. Verify callback authenticity and the stored output before marking delivery complete. This CLI intentionally has no flags for them.

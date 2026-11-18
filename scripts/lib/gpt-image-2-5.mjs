@@ -98,9 +98,9 @@ export const POLL_INTERVAL_MS = 3000;
 export const DEFAULT_TIMEOUT_MINUTES = 30;
 // 2K/4K PNG outputs run to tens of MB; the 15s request timeout is too short.
 export const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120000;
-export const HIAPI_API_KEYS_URL = "https://www.hiapi.ai/en/dashboard/api-keys?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5";
-export const HIAPI_DASHBOARD_URL = "https://www.hiapi.ai/en/dashboard?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5";
-export const HIAPI_PRICING_URL = "https://www.hiapi.ai/en/pricing?utm_source=skill&utm_medium=agent&utm_campaign=hiapi-gpt-image-2-5";
+export const HIAPI_API_KEYS_URL = "https://www.hiapi.ai/en/dashboard/api-keys";
+export const HIAPI_DASHBOARD_URL = "https://www.hiapi.ai/en/dashboard";
+export const HIAPI_PRICING_URL = "https://www.hiapi.ai/en/pricing";
 
 export function resolveConfig(env = process.env) {
   const apiKey = String(env.HIAPI_API_KEY || "").trim();
