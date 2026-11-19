@@ -2,7 +2,7 @@
 
 # GPT Image 2.5 Agent Skill — Image Generation & Editing with HiAPI
 
-Generate product images, poster covers, transparent assets, or reference edits through HiAPI from Codex or Claude Code with GPT Image 2.5 Flare or Sunburst. By default the CLI picks the resolution-priced mode model from your input — `gpt-image-2.5-flare/text-to-image` without reference images, `gpt-image-2.5-flare/image-to-image` with them — and `--family sunburst` switches to the Sunburst pair. `--route pro` selects the quality-priced `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`. The bare IDs `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` are not requested directly.
+Generate product images, poster covers, transparent assets, or reference edits through HiAPI from Codex or Claude Code with GPT Image 2.5 Flare or Sunburst. By default the CLI picks the resolution-priced mode model from your input — `gpt-image-2.5-flare/text-to-image` without reference images, `gpt-image-2.5-flare/image-to-image` with them — and `--family sunburst` switches to the Sunburst pair. `--route pro` selects `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`, priced per image by framing × resolution × quality. The bare IDs `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` are not requested directly.
 
 Published skill package. Install with the Agent Skills CLI after verifying the repository URL; keep client runtime and paid-task acceptance separate.
 
@@ -22,9 +22,9 @@ Published skill package. Install with the Agent Skills CLI after verifying the r
 | Route | Model IDs | Selected when | Pricing basis | Controls |
 | --- | --- | --- | --- | --- |
 | Mode (default) | `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image` | `--model` omitted; mode follows whether `--image-url` is present; `--family` defaults to `flare` | per image by `resolution` (1K/2K/4K) | prompt ≤ 20,000 chars, 13 aspect ratios (default `auto`), `resolution` (default `1K`), optional `background` (1K only) |
-| Pro (explicit) | `gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro` | `--route pro` (with `--family`), or `--model` names one of these IDs | per image by `quality` | prompt ≤ 20,000 chars, ratios or pixel sizes, six quality values, background, PNG/JPEG/WebP output |
+| Pro (explicit) | `gpt-image-2.5-flare@pro`, `gpt-image-2.5-sunburst@pro` | `--route pro` (with `--family`), or `--model` names one of these IDs | per image by `quality` × `framing` × `resolution` | prompt ≤ 20,000 chars, 15 ratios or a `WxH` pixel size (default `1:1`, no `auto`), `resolution` (default `1K`), five quality values (default `medium`, no `auto`), background, PNG/JPEG/WebP output |
 
-Each accepted async task returns one image. The CLI rejects `--quality`/`--output-format` on the mode route and `--resolution` on the pro route instead of silently dropping them. The skill makes no quality, speed, or visual ranking between the routes or between Flare and Sunburst.
+Each accepted async task returns one image. The CLI rejects `--quality`/`--output-format` on the mode route and never sends `framing` on either route, because the server computes that billing tier from the requested size and returns HTTP 400 when a request carries it. The skill makes no quality, speed, or visual ranking between the routes or between Flare and Sunburst.
 
 All six model IDs accept prompts up to 20,000 characters (raised on 2026-10-13). The CLI trims surrounding whitespace before validation and counts UTF-16 code units with JavaScript `string.length`: a BMP character counts as one unit; an astral emoji counts as two. The CLI rejects longer prompts before task submission, and the API returns `INVALID_REQUEST` with a `maxLength` message for anything that still gets through. Text-to-image also has an internal o200k token cap that returns `PROMPT_TOO_LONG`; image-to-image does not. Keep every prompt in the examples below within this limit.
 
@@ -73,11 +73,12 @@ node scripts/hiapi-gpt-image-2-5.mjs --family sunburst \
   --idempotency-key gpt25-edit-001
 ```
 
-Use quality tiers through the pro route:
+Use the pro route for quality tiers, an output-format choice, and a size paired with 1K/2K/4K. `@pro` sizes are one of 15 ratios (`1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `5:4`, `4:5`, `16:9`, `9:16`, `2:1`, `1:2`, `21:9`, `9:21`, `3:1`, `1:3`) or exact `WxH` pixels; `auto` is gone. The price depends on the framing tier derived from long side ÷ short side (square < 1.3, standard 1.3–2, panorama > 2), the resolution tier of the actual output, and the quality:
 
 ```bash
 node scripts/hiapi-gpt-image-2-5.mjs --route pro --family sunburst \
-  --prompt "A quiet alpine lake at dawn" --quality high --output-format webp \
+  --prompt "A quiet alpine lake at dawn" \
+  --aspect-ratio 16:9 --resolution 2K --quality high --output-format webp \
   --dry-run --estimate
 ```
 
@@ -94,13 +95,13 @@ Run checks locally with `npm test` and `npm run check:contract`. See [README.zh-
 
 **How is GPT Image 2.5 different from GPT Image 2?** This skill targets only the six GPT Image 2.5 Flare/Sunburst IDs listed above. GPT Image 2 and other image models are outside its invocation boundary; compare their current model documentation separately.
 
-**Which 2.5 model should I use?** Omit `--model`: the CLI uses Flare's text-to-image or image-to-image model depending on whether you pass reference images. Add `--family sunburst` when Sunburst is requested, or use `--route pro` (`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`) when you specifically need quality tiers or a PNG/JPEG/WebP output choice. The skill makes no unsupported quality, speed, or visual ranking between them.
+**Which 2.5 model should I use?** Omit `--model`: the CLI uses Flare's text-to-image or image-to-image model depending on whether you pass reference images. Add `--family sunburst` when Sunburst is requested, or use `--route pro` (`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`) when you specifically need quality tiers, a PNG/JPEG/WebP output choice, or a size and resolution pair. The skill makes no unsupported quality, speed, or visual ranking between them.
 
 **Is this an API or a skill?** HiAPI provides the async API and model contract; this repository packages a repeatable Agent Skills workflow around it, including validation, estimates, idempotency, polling, resume, and download.
 
 **Do I need a key, and what does it cost?** `HIAPI_API_KEY` is required for creation and recovery, not dry-run validation. Use `--estimate` for the current `/api/pricing` snapshot; estimates are not billing guarantees and accepted tasks follow current pricing.
 
-**How do transparent backgrounds work?** On the default mode route, set `--background transparent` at `--resolution 1K` (the only resolution that accepts `background`); the result is a PNG with alpha. On the pro route, set `--background transparent` with `--output-format png` or `webp`; JPEG cannot carry transparency.
+**How do transparent backgrounds work?** On the default mode route, set `--background transparent` at `--resolution 1K` (the only resolution that accepts `background`); the result is a PNG with alpha. On the pro route, `--background` is independent of `--resolution`; set `--output-format png` or `webp`, because JPEG cannot carry transparency.
 
 **Can I install or recover without an API key?** Installation and dry-run are local. Recovery needs the key and an existing task ID, but does not create a new task. Use `--resume-task-id` after a timeout or `--no-wait` submission.
 

@@ -1,16 +1,16 @@
 # HiAPI GPT Image 2.5 Agent Skill
 
-HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`, plus the pro route `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro` for quality tiers — covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
+HiAPI Agent Skill for GPT Image 2.5 Flare and Sunburst — default mode models `gpt-image-2.5-flare/text-to-image`, `gpt-image-2.5-flare/image-to-image`, `gpt-image-2.5-sunburst/text-to-image`, `gpt-image-2.5-sunburst/image-to-image`, plus the pro route `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, priced by quality × framing × resolution (15 ratios or a WxH size, 1K/2K/4K, five quality values, server-computed framing) — covering AI image generation, image editing, preflight estimates, idempotent async tasks, recovery, and output download.
 
 All six model IDs require prompts within 20,000 UTF-16 code units after trimming surrounding whitespace; longer prompts are rejected locally. Text-to-image also has an internal o200k token cap (`PROMPT_TOO_LONG`); image-to-image does not.
 
 - [README](README.md): installation, scenarios, examples, and FAQ
 - [Skill instructions](SKILL.md): invocation boundary and workflow
-- [API contract](references/api.md): fields, enums, defaults, pricing snapshot
+- [API contract](references/api.md): fields, enums, defaults, and a dated pricing snapshot
 - [Output and recovery](references/output.md): polling, download, and QC
 - [Agent installation](llms-install.md): local installer and planned public command
 - [Flare text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
 - [Flare image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
 - [Sunburst text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
 - [Sunburst image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
-- [Pricing (includes @pro quality tiers)](https://www.hiapi.ai/en/pricing?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
+- [Pricing (includes the @pro quality × framing × resolution tiers)](https://www.hiapi.ai/en/pricing?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)

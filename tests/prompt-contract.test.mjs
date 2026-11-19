@@ -3,15 +3,20 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   ALL_MODEL_IDS,
+  ASPECT_RATIOS,
   DEFAULT_SITE_URL,
+  QUALITIES,
   buildImagePayload,
   checkLiveContract,
   fetchPricingEstimate,
   generateImage,
 } from "../scripts/lib/gpt-image-2-5.mjs";
 
-// Public no-key schemas captured 2026-10-05 from
+// Public no-key schemas captured from
 // https://api.hiapi.ai/api/models/content?name=<model ID>.
+// The four mode schemas were captured on 2026-10-05; the two `@pro` schemas
+// were re-captured on 2026-11-19, when production switched `@pro` to
+// pattern-based sizes plus `resolution` and a server-computed `framing`.
 const schemas = JSON.parse(await readFile(
   new URL("./fixtures/gpt-image-2-5-schemas.json", import.meta.url), "utf8",
 ));
@@ -103,10 +108,26 @@ for (const model of ALL_MODEL_IDS) {
 
 test("20000 prompt limits do not hide other contract violations", async () => {
   for (const model of ALL_MODEL_IDS) {
+    const isPro = model.endsWith("@pro");
     for (const mutate of [
       (schema) => { schema.required = []; },
       (schema) => { schema.properties.aspect_ratio.default = "unsupported"; },
-      (schema) => { schema.properties.aspect_ratio.enum = ["unsupported"]; },
+      // @pro sizes are a pattern, not an enum: break the pattern instead.
+      ...(isPro
+        ? [
+            (schema) => { schema.properties.aspect_ratio.pattern = "^(auto)$"; },
+            (schema) => { schema.properties.aspect_ratio.enum = [...ASPECT_RATIOS]; },
+            (schema) => { schema.properties.quality.enum = [...QUALITIES, "auto"]; },
+            (schema) => { schema.properties.quality.default = "high"; },
+            (schema) => { schema.properties.resolution.default = "2K"; },
+            (schema) => { delete schema.properties.resolution; },
+            (schema) => { delete schema.properties.framing; },
+            (schema) => { schema.properties.framing.visible = true; },
+            (schema) => { schema.properties.framing["x-hiapi-server-computed"] = false; },
+          ]
+        : [
+            (schema) => { schema.properties.aspect_ratio.enum = ["unsupported"]; },
+          ]),
       (schema) => { schema.properties.prompt.minLength = 0; },
       (schema) => { schema.properties.model.enum = ["unsupported"]; },
       ...(schemas[model].properties.image_urls ? [
@@ -116,7 +137,7 @@ test("20000 prompt limits do not hide other contract violations", async () => {
       const snapshot = structuredClone(schemas);
       mutate(snapshot[model]);
       const result = await checkLiveContract({ fetchImpl: schemaFetch(snapshot) });
-      assert.equal(result.ok, false);
+      assert.equal(result.ok, false, `${model} mutation ${mutate}`);
       assert.deepEqual(result.checks.filter((c) => !c.ok).map((c) => c.model), [model]);
     }
   }
