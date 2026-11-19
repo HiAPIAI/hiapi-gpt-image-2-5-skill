@@ -9,8 +9,8 @@ All six model IDs require prompts within 20,000 UTF-16 code units after trimming
 - [API contract](references/api.md): fields, enums, defaults, pricing snapshot
 - [Output and recovery](references/output.md): polling, download, and QC
 - [Agent installation](llms-install.md): local installer and planned public command
-- [Flare text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/)
-- [Flare image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/)
-- [Sunburst text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/)
-- [Sunburst image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/)
-- [Pricing (includes @pro quality tiers)](https://www.hiapi.ai/en/pricing)
+- [Flare text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
+- [Flare image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
+- [Sunburst text-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
+- [Sunburst image-to-image docs](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
+- [Pricing (includes @pro quality tiers)](https://www.hiapi.ai/en/pricing?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5)
