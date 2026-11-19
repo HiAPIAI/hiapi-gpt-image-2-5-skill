@@ -12,6 +12,89 @@ import {
   MODE_MODELS,
 } from "../scripts/lib/gpt-image-2-5.mjs";
 
+test("estimate adds the row's own addons for reference images", async () => {
+  // Shape mirrors the live /api/pricing rows for both @pro IDs.
+  const referImagesAddon = {
+    key: "reference-images",
+    type: "array_length",
+    path: "image_urls",
+    unit_price: "0.007",
+    unit_size: "1",
+    missing: "zero",
+  };
+  const row = {
+    model_name: "gpt-image-2.5-flare@pro",
+    base_usd_value: 0.51,
+    base_display_unit: { en: "per output image" },
+    addons: [referImagesAddon],
+    policies: [
+      {
+        name: "SQUARE, MEDIUM, 1K",
+        rule: { framing: { match: "square" }, quality: { match: "medium" }, resolution: { match: "1K" } },
+        usd_value: 0.0099,
+      },
+    ],
+  };
+  const pricing = { data: [row] };
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
+  const edit = buildImagePayload({
+    prompt: "p",
+    model: PRO_MODELS.flare,
+    imageUrls: ["https://example.com/a.png", "https://example.com/b.png"],
+  });
+  const estimate = await fetchPricingEstimate(edit, { fetchImpl });
+  assert.equal(estimate.baseUsd, 0.0099);
+  assert.equal(estimate.addonsUsd, 0.014);
+  assert.equal(estimate.estimatedUsd, 0.0239);
+  assert.equal(estimate.unitUsd, 0.0099);
+  assert.deepEqual(estimate.addons, [
+    {
+      key: "reference-images",
+      type: "array_length",
+      path: "image_urls",
+      quantity: 2,
+      unitSize: 1,
+      unitPriceUsd: 0.007,
+      subtotalUsd: 0.014,
+    },
+  ]);
+  // Without reference images the addon charges nothing.
+  const textOnly = await fetchPricingEstimate(
+    buildImagePayload({ prompt: "p", model: PRO_MODELS.flare }),
+    { fetchImpl },
+  );
+  assert.equal(textOnly.addonsUsd, 0);
+  assert.deepEqual(textOnly.addons, []);
+  assert.equal(textOnly.estimatedUsd, 0.0099);
+  // The unit price comes from the row, not from a hard-coded 0.007.
+  const repriced = structuredClone(pricing);
+  repriced.data[0].addons[0].unit_price = "0.02";
+  const repricedEstimate = await fetchPricingEstimate(edit, {
+    fetchImpl: async () => ({ ok: true, status: 200, text: async () => JSON.stringify(repriced) }),
+  });
+  assert.equal(repricedEstimate.addonsUsd, 0.04);
+  assert.equal(repricedEstimate.estimatedUsd, 0.0499);
+});
+test("mode rows without addons keep their previous estimate shape", async () => {
+  const pricing = {
+    data: [
+      {
+        model_name: "gpt-image-2.5-flare/image-to-image",
+        base_usd_value: 0.025,
+        policies: [{ rule: { resolution: { match: "1K" } }, usd_value: 0.05 }],
+      },
+    ],
+  };
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(pricing) });
+  const estimate = await fetchPricingEstimate(
+    buildImagePayload({ prompt: "p", imageUrls: ["https://x/a.png"] }),
+    { fetchImpl },
+  );
+  assert.equal(estimate.estimatedUsd, 0.05);
+  assert.equal(estimate.baseUsd, 0.05);
+  assert.equal(estimate.addonsUsd, 0);
+  assert.equal(estimate.pricingRule, undefined);
+});
 test("estimate matches the exact @pro pricing row by framing, resolution, and quality", async () => {
   const pricing = {
     data: [

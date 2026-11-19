@@ -797,6 +797,144 @@ export async function generateImage(options = {}, config = resolveConfig()) {
     output,
   };
 }
+// Resolves an addon path against the request input. Supports the dotted form
+// used by production pricing rows (`image_urls`) and JSON pointers (`/a/b`).
+function addonValue(input, path) {
+  if (typeof path !== "string" || !path) return { found: false };
+  if (path.startsWith("/")) {
+    let cur = input;
+    for (const raw of path.slice(1).split("/")) {
+      const key = raw.replaceAll("~1", "/").replaceAll("~0", "~");
+      if (!cur || typeof cur !== "object") return { found: false };
+      if (!(key in cur)) return { found: false };
+      cur = cur[key];
+    }
+    return { found: true, value: cur };
+  }
+  let cur = input;
+  for (const key of path.split(".")) {
+    if (!cur || typeof cur !== "object") return { found: false };
+    if (!(key in cur)) return { found: false };
+    cur = cur[key];
+  }
+  return { found: true, value: cur };
+}
+function addonIsEmpty({ found, value }) {
+  if (!found || value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+function addonNumber(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+// Mirrors evaluateAddon in hiapi-backend service/modelparams/pricing_addon.go:
+// quantity by type, then unit_size, minimum/maximum, cap_quantity and cap,
+// with `missing: "error"` failing closed and any other missing value charging
+// nothing. Returns null when the addon does not apply to this request.
+export function evaluatePricingAddon(addon, input = {}) {
+  if (!addon || !addon.type) return null;
+  const resolved = addonValue(input, addon.path);
+  if (addonIsEmpty(resolved)) {
+    if (String(addon.missing || "").toLowerCase() === "error")
+      throw new Error(
+        `Pricing addon ${addon.key || addon.path} requires input.${addon.path}, which this request does not set.`,
+      );
+    return null;
+  }
+  const raw = resolved.value;
+  let quantity;
+  switch (addon.type) {
+    case "array_length":
+      if (!Array.isArray(raw))
+        throw new Error(
+          `Pricing addon ${addon.key || addon.path} expects input.${addon.path} to be an array.`,
+        );
+      quantity = raw.length;
+      break;
+    case "presence":
+      quantity = 1;
+      break;
+    case "boolean":
+      if (typeof raw !== "boolean")
+        throw new Error(
+          `Pricing addon ${addon.key || addon.path} expects input.${addon.path} to be a boolean.`,
+        );
+      if (!raw) return null;
+      quantity = 1;
+      break;
+    case "numeric": {
+      const n = addonNumber(raw);
+      if (n === null)
+        throw new Error(
+          `Pricing addon ${addon.key || addon.path} expects a numeric input.${addon.path}.`,
+        );
+      quantity = n;
+      break;
+    }
+    case "value":
+    case "enum":
+      if (String(raw) !== String(addon.value)) return null;
+      quantity = 1;
+      break;
+    default:
+      throw new Error(
+        `Pricing addon ${addon.key || addon.path} uses unsupported type "${addon.type}".`,
+      );
+  }
+  if (quantity < 0)
+    throw new Error(
+      `Pricing addon ${addon.key || addon.path} calculated a negative quantity.`,
+    );
+  const minimum = addonNumber(addon.minimum);
+  const maximum = addonNumber(addon.maximum);
+  if (minimum !== null && quantity < minimum)
+    throw new Error(
+      `Pricing addon ${addon.key || addon.path} is below its minimum quantity ${minimum}.`,
+    );
+  if (maximum !== null && quantity > maximum)
+    throw new Error(
+      `Pricing addon ${addon.key || addon.path} exceeds its maximum quantity ${maximum}.`,
+    );
+  const capQuantity = addonNumber(addon.cap_quantity);
+  if (capQuantity !== null && quantity > capQuantity) quantity = capQuantity;
+  const unitSize = addonNumber(addon.unit_size) ?? 1;
+  if (unitSize <= 0)
+    throw new Error(
+      `Pricing addon ${addon.key || addon.path} declares a non-positive unit_size.`,
+    );
+  const unitPriceUsd = addonNumber(addon.unit_price) ?? 0;
+  let subtotalUsd = (quantity / unitSize) * unitPriceUsd;
+  const capUsd = addonNumber(addon.cap);
+  if (capUsd !== null && subtotalUsd > capUsd) subtotalUsd = capUsd;
+  return {
+    key: addon.key || addon.path,
+    type: addon.type,
+    path: addon.path,
+    quantity,
+    unitSize,
+    unitPriceUsd,
+    subtotalUsd: roundUsd(subtotalUsd),
+  };
+}
+// Applies every addon the pricing row declares, in row order.
+export function evaluatePricingAddons(row, input = {}) {
+  const applied = [];
+  for (const addon of Array.isArray(row?.addons) ? row.addons : []) {
+    const charge = evaluatePricingAddon(addon, input);
+    if (charge) applied.push(charge);
+  }
+  return {
+    addonsUsd: roundUsd(applied.reduce((sum, a) => sum + a.subtotalUsd, 0)),
+    addons: applied,
+  };
+}
+function roundUsd(value) {
+  return Number(Number(value || 0).toFixed(6));
+}
 export async function fetchPricingEstimate(payload, options = {}) {
   const siteUrl = (
     options.siteUrl ||
@@ -828,11 +966,20 @@ export async function fetchPricingEstimate(payload, options = {}) {
     ),
   );
   const unitUsd = Number(policy?.usd_value ?? row.base_usd_value);
+  const baseUsd = Number.isFinite(unitUsd) ? roundUsd(unitUsd) : 0;
+  // Rows may declare per-unit addons (e.g. @pro charges USD 0.007 per reference
+  // image). They are read from the live row, never hard-coded, and only the
+  // addons the request actually triggers are charged.
+  const { addonsUsd, addons } = evaluatePricingAddons(row, payload.input);
+  const totalUsd = roundUsd(baseUsd + addonsUsd);
   return {
     model: payload.model,
     pricingModel: row.model_name,
-    unitUsd,
-    estimatedUsd: Number.isFinite(unitUsd) ? Number(unitUsd.toFixed(4)) : null,
+    unitUsd: baseUsd,
+    baseUsd,
+    addonsUsd,
+    estimatedUsd: totalUsd,
+    addons,
     billingBasis:
       row.base_display_unit?.en || "current public pricing snapshot",
     ...(isProModel(payload.model)

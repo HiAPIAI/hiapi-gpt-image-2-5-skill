@@ -22,7 +22,7 @@ The bare IDs `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` are not a suppor
 
 ## Mode route (default)
 
-Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5), [Flare image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5), [Sunburst text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5), [Sunburst image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5). All four share one schema; image-to-image additionally requires `image_urls`.
+Authoritative pages: [Flare text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-text-to-image/), [Flare image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-flare-image-to-image/), [Sunburst text-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-text-to-image/), [Sunburst image-to-image](https://www.hiapi.ai/docs/models/image/gpt-image-2-5-sunburst-image-to-image/). All four share one schema; image-to-image additionally requires `image_urls`.
 
 ```json
 {
@@ -48,7 +48,7 @@ There is no `quality`, `output_format`, or `n` on this route. CLI flags: `--fami
 
 ## Pro route (`@pro`, quality × framing × resolution)
 
-Selected with `--route pro` (plus `--family sunburst` when requested) or `--model gpt-image-2.5-flare@pro` / `--model gpt-image-2.5-sunburst@pro`. The live public schema for each `@pro` ID is checked by `npm run check:contract`; see the [pricing page](https://www.hiapi.ai/en/pricing?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5) for current prices.
+Selected with `--route pro` (plus `--family sunburst` when requested) or `--model gpt-image-2.5-flare@pro` / `--model gpt-image-2.5-sunburst@pro`. The live public schema for each `@pro` ID is checked by `npm run check:contract`; see the [pricing page](https://www.hiapi.ai/en/pricing) for current prices.
 
 ```json
 {
@@ -80,7 +80,7 @@ CLI flags: `--route pro`, `--family`, `--model`, repeated `--image-url`, `--aspe
 
 ## Pricing and estimates
 
-`--estimate` reads `https://api.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-09-29 snapshot observed USD/image `1K` 0.05, `2K` 0.08, `4K` 0.12 for all four. The `@pro` models are listed under `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, the same IDs the task request sends, and priced by fixed rules over `{framing, quality, resolution}` — 45 cells per model (3 framings × 5 qualities × 3 tiers). The CLI derives `framing` and the billed resolution tier locally before matching, because `framing` is server-computed and a ratio's billed tier follows its actual output pixels (a 3:1 or 1:3 size at `--resolution 4K` outputs 3840×1280 and is billed as `2K`). A 2026-11-19 snapshot observed, for both `@pro` IDs, USD/image:
+`--estimate` reads `https://api.hiapi.ai/api/pricing` and matches the selected model and input policy. Mode models are listed under their exact IDs and priced by `resolution`; a 2026-11-19 snapshot observed USD/image `1K` 0.025, `2K` 0.04, `4K` 0.06 for all four, with no add-ons. The `@pro` models are listed under `gpt-image-2.5-flare@pro` and `gpt-image-2.5-sunburst@pro`, the same IDs the task request sends, and priced by fixed rules over `{framing, quality, resolution}` — 45 cells per model (3 framings × 5 qualities × 3 tiers). The CLI derives `framing` and the billed resolution tier locally before matching, because `framing` is server-computed and a ratio's billed tier follows its actual output pixels (a 3:1 or 1:3 size at `--resolution 4K` outputs 3840×1280 and is billed as `2K`). A 2026-11-19 snapshot observed, for both `@pro` IDs, USD/image:
 
 | framing | quality | 1K | 2K | 4K |
 | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ CLI flags: `--route pro`, `--family`, `--model`, repeated `--image-url`, `--aspe
 | standard | low / medium / high / xhigh / max | 0.0034 / 0.0074 / 0.029 / 0.052 / 0.12 | 0.0049 / 0.011 / 0.043 / 0.075 / 0.17 | 0.0098 / 0.022 / 0.086 / 0.15 / 0.35 |
 | panorama | low / medium / high / xhigh / max | 0.0021 / 0.0044 / 0.018 / 0.031 / 0.07 | 0.0032 / 0.0072 / 0.029 / 0.05 / 0.11 | 0.0057 / 0.012 / 0.05 / 0.086 / 0.2 |
 
-Both `@pro` rows also carry a per-reference-image add-on of USD 0.007 per `image_urls` entry; the estimate reports the base output-image price only. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
+Both `@pro` rows also declare an add-on: `reference-images`, `type: array_length`, `path: image_urls`, USD 0.007 per entry, `missing: zero`. The estimate applies every add-on the matched pricing row declares, reading the unit price from the live row rather than hard-coding it: it reports `baseUsd` (the matched cell), `addonsUsd`, the per-add-on breakdown, and `estimatedUsd` = base + add-ons. Two reference images on a `SQUARE, MEDIUM, 1K` call therefore estimate USD 0.0099 + 0.014 = 0.0239. Rows without add-ons, such as the four mode models, report `addonsUsd: 0` and an unchanged `estimatedUsd`. These are dated snapshots, not billing guarantees; final billing follows the accepted task. Preflight does not create a task.
 
 ## Direct API recovery and optional features
 
@@ -110,4 +110,4 @@ The CLI does not expose callback or persistent-storage flags. When the account/A
 }
 ```
 
-See the [Unified Async API create-task reference](https://www.hiapi.ai/docs/async-api/create/?utm_source=github&utm_medium=readme&utm_campaign=hiapi-gpt-image-2-5). `callback` and `storage` are opt-in direct-API features; persistent storage may incur additional storage charges, so check the current pricing and account contract. Verify callback authenticity and the stored output before marking delivery complete. This CLI intentionally has no flags for them.
+See the [Unified Async API create-task reference](https://www.hiapi.ai/docs/async-api/create/). `callback` and `storage` are opt-in direct-API features; persistent storage may incur additional storage charges, so check the current pricing and account contract. Verify callback authenticity and the stored output before marking delivery complete. This CLI intentionally has no flags for them.
