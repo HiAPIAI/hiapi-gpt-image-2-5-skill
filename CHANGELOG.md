@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-11-19
+
+- Follows the new production `@pro` contract, verified against `https://api.hiapi.ai/api/models/content?name=gpt-image-2.5-flare@pro` and `https://api.hiapi.ai/api/pricing`:
+  - `aspect_ratio` is now a pattern of 15 ratios (`1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `5:4`, `4:5`, `16:9`, `9:16`, `2:1`, `1:2`, `21:9`, `9:21`, `3:1`, `1:3`) plus an exact `WxH` pixel size; `auto` is rejected locally and no longer sent.
+  - `quality` has five values (`low`, `medium`, `high`, `xhigh`, `max`); `auto` is rejected locally.
+  - `--resolution 1K|2K|4K` (default `1K`) is now accepted on the pro route and written to `input.resolution`.
+  - `framing` is a server-computed billing tier: never sent, and `--framing` is rejected locally with a pointer to the server derivation.
+  - `--estimate` derives `framing` and the billed resolution tier locally (long side ÷ short side: square < 1.3, standard 1.3–2, panorama > 2; WxH bills by total pixels, and a ratio whose long side is capped at 3840 at 4K bills as 2K) and matches the 45-cell `{framing, quality, resolution}` rule set from live pricing. No prices are hard-coded.
+- `checkLiveContract` now asserts the live `@pro` shape: the size pattern, no size enum, `quality` five values, `resolution` enum with default `1K`, and `framing` hidden/server-computed.
+- `tests/fixtures/gpt-image-2-5-schemas.json` carries the 2026-11-19 live `@pro` schemas; the mode schemas are unchanged.
+- Docs, `llms.txt`, and the API reference now describe the three-factor `@pro` pricing and replace the stale per-quality price snapshot with a dated framing × quality × resolution table.
+- **Soft upgrade**: `latestVersion` is 0.4.0 and `minimumVersion` remains 0.3.1. Older copies still create valid default `@pro` tasks and unaffected mode-route tasks; their defects are rejecting `--resolution`, accepting the now-invalid `auto` values locally, and missing the three-key price match.
+
 ## 0.3.3 — 2026-11-07
 
 - Read the public no-key pricing and model metadata from `https://api.hiapi.ai`. `DEFAULT_SITE_URL` now points at the API host, which keeps `--estimate` and the live contract check working; `https://www.hiapi.ai/api/...` now redirects to `https://hiapi.ai/api/...` and returns 404.

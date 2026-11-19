@@ -3,15 +3,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 
 export const SKILL_ID = "hiapi-gpt-image-2-5";
-export const SKILL_VERSION = "0.3.3";
+export const SKILL_VERSION = "0.4.0";
 // Family base names. Never sent as a model ID: the bare IDs are not a
 // supported request route; use a mode ID or the `@pro` route instead.
 export const FAMILIES = Object.freeze({
   flare: "gpt-image-2.5-flare",
   sunburst: "gpt-image-2.5-sunburst",
 });
-// Pro route: priced by `quality`, selected with --route pro or an explicit
-// `@pro` model ID.
+// Pro route: priced by `framing` × `resolution` × `quality`, selected with
+// --route pro or an explicit `@pro` model ID.
 export const PRO_MODELS = Object.freeze({
   flare: "gpt-image-2.5-flare@pro",
   sunburst: "gpt-image-2.5-sunburst@pro",
@@ -39,33 +39,56 @@ export const DEFAULT_REPOSITORY_POLICY_URL =
   "https://raw.githubusercontent.com/HiAPIAI/hiapi-gpt-image-2-5-skill/main/update-policy.json";
 export const UPDATE_COMMAND =
   'for d in "$HOME/.claude/skills" "$HOME/.codex/skills"; do if [ -d "$d" ]; then npx --yes --package=github:HiAPIAI/hiapi-gpt-image-2-5-skill hiapi-gpt-image-2-5-install --target="$d" --force; fi; done';
+// @pro image size: 15 ratios plus an exact `WxH` pixel size. Production
+// publishes this as a JSON-Schema `pattern` (not an enum) and has no `auto`.
+// Verified 2026-11-19 against
+// https://api.hiapi.ai/api/models/content?name=gpt-image-2.5-flare@pro.
+export const PRO_ASPECT_RATIO_PATTERN =
+  "^(1:1|3:2|2:3|4:3|3:4|5:4|4:5|16:9|9:16|2:1|1:2|21:9|9:21|3:1|1:3|[1-9][0-9]{1,3}x[1-9][0-9]{1,3})$";
 export const ASPECT_RATIOS = new Set([
   "1:1",
   "3:2",
   "2:3",
   "4:3",
   "3:4",
+  "5:4",
+  "4:5",
   "16:9",
   "9:16",
-  "auto",
-  "1024x1024",
-  "1536x1024",
-  "1024x1536",
-  "1536x1152",
-  "1152x1536",
-  "2048x2048",
-  "2048x1152",
-  "1152x2048",
-  "3840x2160",
-  "2160x3840",
+  "2:1",
+  "1:2",
+  "21:9",
+  "9:21",
+  "3:1",
+  "1:3",
 ]);
+// WxH arithmetic accepted by the backend (`pixelSizeViolation` in
+// hiapi-backend service/modelparams/size_tier.go).
+export const PRO_SIZE_EDGE_MIN = 16;
+export const PRO_SIZE_EDGE_MAX = 3840;
+export const PRO_SIZE_EDGE_MULTIPLE = 16;
+export const PRO_SIZE_MIN_PIXELS = 655360;
+export const PRO_SIZE_MAX_PIXELS = 8294400;
+export const PRO_SIZE_MAX_ASPECT = 3;
+// Pixel budget per resolution tier, used both as the ratio layout budget and
+// as the WxH tier ceiling: 1K up to 2048×1024, 2K up to 2560×2048, 4K up to
+// 3840×2160 (tierPixelBudget / tier1KMaxPixels / tier2KMaxPixels in the same
+// backend file).
+export const PRO_TIER_MAX_PIXELS = Object.freeze({
+  "1K": 2097152,
+  "2K": 5242880,
+  "4K": 8294400,
+});
+// Framing thresholds (FramingSquareMax / FramingStandardMax defaults 1.3 / 2.0).
+export const PRO_FRAMING_SQUARE_MAX = 1.3;
+export const PRO_FRAMING_STANDARD_MAX = 2;
+export const FRAMINGS = new Set(["square", "standard", "panorama"]);
 export const QUALITIES = new Set([
   "low",
   "medium",
   "high",
   "xhigh",
   "max",
-  "auto",
 ]);
 export const BACKGROUNDS = new Set(["auto", "transparent", "opaque"]);
 export const MODE_ASPECT_RATIOS = new Set([
@@ -200,7 +223,132 @@ export function normalizeResolution(value) {
   return v;
 }
 export function normalizeAspectRatio(value) {
-  return enumValue(value, "1:1", ASPECT_RATIOS, "aspect ratio");
+  const v = String(value ?? "1:1").trim();
+  if (!v) return "1:1";
+  if (v.toLowerCase() === "auto")
+    throw new Error(
+      `Unsupported aspect ratio "auto". The @pro route has no auto size; use one of the 15 ratios (${[...ASPECT_RATIOS].join(", ")}) or a WxH pixel size such as 1152x1536.`,
+    );
+  if (ASPECT_RATIOS.has(v)) return v;
+  const pixel = parsePixelSize(v);
+  if (pixel.error) throw new Error(pixel.error);
+  if (!pixel.ok)
+    throw new Error(
+      `Unsupported aspect ratio "${value}". Use one of: ${[...ASPECT_RATIOS].join(", ")}, or a WIDTHxHEIGHT pixel size (both sides multiples of 16, 16–3840, total pixels 655360–8294400, long side at most 3× the short side).`,
+    );
+  return v;
+}
+// Parses `WxH` with the backend's arithmetic limits. `ok` is false when the
+// value is not a WxH pixel size the public schema accepts (each side is
+// `[1-9][0-9]{1,3}` there: 2–4 digits, no leading zero); `error` is set when
+// the shape matches but the arithmetic limits are violated (mirrors
+// pixelSizeViolation in hiapi-backend).
+export function parsePixelSize(value) {
+  const v = String(value ?? "").trim();
+  const parts = v.split("x");
+  if (parts.length !== 2) return { ok: false };
+  const side = /^[1-9][0-9]{1,3}$/;
+  if (!side.test(parts[0]) || !side.test(parts[1])) return { ok: false };
+  const w = Number(parts[0]);
+  const h = Number(parts[1]);
+  if (w > PRO_SIZE_EDGE_MAX || h > PRO_SIZE_EDGE_MAX)
+    return {
+      ok: true,
+      error: "aspect_ratio width and height must not exceed 3840.",
+    };
+  if (w < PRO_SIZE_EDGE_MIN || h < PRO_SIZE_EDGE_MIN)
+    return {
+      ok: true,
+      error: "aspect_ratio width and height must be at least 16.",
+    };
+  if (w % PRO_SIZE_EDGE_MULTIPLE !== 0 || h % PRO_SIZE_EDGE_MULTIPLE !== 0)
+    return {
+      ok: true,
+      error: "aspect_ratio width and height must be multiples of 16.",
+    };
+  const pixels = w * h;
+  if (pixels < PRO_SIZE_MIN_PIXELS || pixels > PRO_SIZE_MAX_PIXELS)
+    return {
+      ok: true,
+      error: "aspect_ratio total pixels must be between 655360 and 8294400.",
+    };
+  if (w > h * PRO_SIZE_MAX_ASPECT || h > w * PRO_SIZE_MAX_ASPECT)
+    return {
+      ok: true,
+      error: "aspect_ratio long side must be at most 3x the short side.",
+    };
+  return { ok: true, w, h };
+}
+function pixelTierFromPixels(pixels) {
+  if (pixels <= PRO_TIER_MAX_PIXELS["1K"]) return "1K";
+  if (pixels <= PRO_TIER_MAX_PIXELS["2K"]) return "2K";
+  return "4K";
+}
+function ratioSides(value) {
+  const [a, b] = value.split(":").map(Number);
+  return a >= b ? [a, b] : [b, a];
+}
+// The tier actually billed for a ratio + --resolution pair: the upstream lays
+// the ratio out within the tier's pixel budget but caps the long side at 3840,
+// so 3:1 / 1:3 at 4K outputs 3840×1280 and is billed as 2K.
+function ratioPixelTier(size, baseTier) {
+  const [long, short] = ratioSides(size);
+  if (!(long > 0 && short > 0)) return baseTier;
+  const budget =
+    PRO_TIER_MAX_PIXELS[baseTier] || PRO_TIER_MAX_PIXELS["1K"];
+  let pixels = budget;
+  if (budget * long > PRO_SIZE_EDGE_MAX * PRO_SIZE_EDGE_MAX * short)
+    pixels = Math.floor(
+      (PRO_SIZE_EDGE_MAX * PRO_SIZE_EDGE_MAX * short) / long,
+    );
+  return pixelTierFromPixels(pixels);
+}
+// Long side ÷ short side: < 1.3 square, ≤ 2 standard, otherwise panorama.
+// Thresholds and the <= boundary match framingForSides in hiapi-backend
+// service/modelparams/size_tier.go (7deadc914 / 62e164f24, origin/main).
+export function computeFraming(size) {
+  let w;
+  let h;
+  if (ASPECT_RATIOS.has(size)) [w, h] = ratioSides(size);
+  else {
+    const pixel = parsePixelSize(size);
+    if (!pixel.ok || pixel.error) return "standard";
+    w = pixel.w;
+    h = pixel.h;
+  }
+  if (!(w > 0 && h > 0)) return "standard";
+  const long = Math.max(w, h);
+  const short = Math.min(w, h);
+  const ratio = long / short;
+  if (ratio < PRO_FRAMING_SQUARE_MAX) return "square";
+  if (ratio <= PRO_FRAMING_STANDARD_MAX) return "standard";
+  return "panorama";
+}
+// Pricing copy for the @pro route: the server prices on
+// framing × resolution × quality, where resolution is the tier of the actual
+// output pixels. Never sent upstream; used only to match /api/pricing rules.
+export function proPricingInput(input = {}) {
+  let size = String(input.aspect_ratio ?? "").trim();
+  if (!ASPECT_RATIOS.has(size)) {
+    const pixel = parsePixelSize(size);
+    if (!pixel.ok || pixel.error) size = "1:1";
+  }
+  const declared = RESOLUTIONS.has(
+    String(input.resolution ?? "").trim().toUpperCase(),
+  )
+    ? String(input.resolution).trim().toUpperCase()
+    : "1K";
+  let tier = declared;
+  if (ASPECT_RATIOS.has(size)) tier = ratioPixelTier(size, declared);
+  else {
+    const pixel = parsePixelSize(size);
+    if (pixel.ok && !pixel.error) tier = pixelTierFromPixels(pixel.w * pixel.h);
+  }
+  return {
+    ...input,
+    framing: computeFraming(size),
+    resolution: tier,
+  };
 }
 export function normalizeQuality(value) {
   return enumValue(value, "medium", QUALITIES, "quality");
@@ -252,6 +400,12 @@ export function buildImagePayload(options = {}) {
   const hasImages = Array.isArray(rawUrls) ? rawUrls.length > 0 : !!rawUrls;
   const model = resolveModel(options, hasImages);
   const outputFormat = options.outputFormat ?? options.output_format;
+  // `framing` is a server-computed billing tier on the @pro routes (requests
+  // that carry it return 400) and is not part of the mode schema at all.
+  if (options.framing != null)
+    throw new Error(
+      "framing is a server-computed billing tier and must not be sent; the server derives it from aspect_ratio. Remove --framing.",
+    );
   if (isModeModel(model)) {
     if (options.quality != null || outputFormat != null)
       throw new Error(
@@ -277,10 +431,6 @@ export function buildImagePayload(options = {}) {
     }
     return { model, input };
   }
-  if (options.resolution != null)
-    throw new Error(
-      `${model} is priced by quality and does not accept resolution; use --quality, or drop --route pro for the resolution-priced mode route.`,
-    );
   const imageUrls = normalizeImageUrls(rawUrls);
   const background = normalizeBackground(options.background);
   const format = normalizeOutputFormat(outputFormat);
@@ -294,6 +444,7 @@ export function buildImagePayload(options = {}) {
     quality: normalizeQuality(options.quality),
     background,
     output_format: format,
+    resolution: normalizeResolution(options.resolution),
   };
   if (imageUrls.length) input.image_urls = imageUrls;
   return { model, input };
@@ -665,9 +816,15 @@ export async function fetchPricingEstimate(payload, options = {}) {
   const row = body?.data?.find((entry) => pricingNames.includes(entry?.model_name));
   if (!row)
     throw new Error(`Current public pricing does not list ${payload.model} (checked ${pricingNames.join(", ")}).`);
+  // @pro rows are fixed rules over {framing, resolution, quality}; framing is
+  // computed by the server and resolution is the tier of the actual output
+  // pixels, so match against a local pricing copy, not the request body.
+  const pricingInput = isProModel(payload.model)
+    ? proPricingInput(payload.input)
+    : payload.input;
   const policy = (row.policies || []).find((p) =>
     Object.entries(p.rule || {}).every(
-      ([k, v]) => payload.input[k] === v.match,
+      ([k, v]) => pricingInput[k] === v.match,
     ),
   );
   const unitUsd = Number(policy?.usd_value ?? row.base_usd_value);
@@ -678,6 +835,16 @@ export async function fetchPricingEstimate(payload, options = {}) {
     estimatedUsd: Number.isFinite(unitUsd) ? Number(unitUsd.toFixed(4)) : null,
     billingBasis:
       row.base_display_unit?.en || "current public pricing snapshot",
+    ...(isProModel(payload.model)
+      ? {
+          pricingRule: {
+            framing: pricingInput.framing,
+            resolution: pricingInput.resolution,
+            quality: pricingInput.quality,
+          },
+          matchedPolicy: policy?.name || null,
+        }
+      : { matchedPolicy: policy?.name || null }),
     pricingPage: HIAPI_PRICING_URL,
     note: "Estimate only; final billing follows the accepted task.",
   };
@@ -707,8 +874,10 @@ export async function checkLiveContract(options = {}) {
       "image_urls",
       "aspect_ratio",
       "quality",
+      "resolution",
       "background",
       "output_format",
+      "framing",
     ];
     const wrapper = props.model?.enum?.includes(model);
     const requiredExact =
@@ -726,36 +895,24 @@ export async function checkLiveContract(options = {}) {
       props.image_urls?.maxItems === 16 &&
       props.prompt?.minLength === 1 &&
       props.prompt?.maxLength === PROMPT_MAX &&
-      JSON.stringify(props.aspect_ratio?.enum) ===
-        JSON.stringify([
-          "1:1",
-          "3:2",
-          "2:3",
-          "4:3",
-          "3:4",
-          "16:9",
-          "9:16",
-          "auto",
-          "1024x1024",
-          "1536x1024",
-          "1024x1536",
-          "1536x1152",
-          "1152x1536",
-          "2048x2048",
-          "2048x1152",
-          "1152x2048",
-          "3840x2160",
-          "2160x3840",
-        ]) &&
+      // Production publishes the @pro size as a pattern (15 ratios + WxH),
+      // not an enum, and no longer accepts `auto`.
+      props.aspect_ratio?.pattern === PRO_ASPECT_RATIO_PATTERN &&
+      props.aspect_ratio?.enum === undefined &&
       props.aspect_ratio?.default === "1:1" &&
-      props.prompt?.minLength === 1 &&
-      props.image_urls?.minItems === 1 &&
       enumMatches("quality", [...QUALITIES]) &&
       props.quality?.default === "medium" &&
+      enumMatches("resolution", [...RESOLUTIONS]) &&
+      props.resolution?.default === "1K" &&
       enumMatches("background", [...BACKGROUNDS]) &&
       props.background?.default === "auto" &&
       enumMatches("output_format", [...FORMATS]) &&
-      props.output_format?.default === "webp";
+      props.output_format?.default === "webp" &&
+      // framing is server-computed and must stay hidden from clients.
+      enumMatches("framing", [...FRAMINGS]) &&
+      props.framing?.default === "standard" &&
+      props.framing?.visible === false &&
+      props.framing?.["x-hiapi-server-computed"] === true;
     checks.push({
       model,
       ok,
@@ -766,6 +923,7 @@ export async function checkLiveContract(options = {}) {
       promptMinLength: props.prompt?.minLength,
       promptMaxLength: props.prompt?.maxLength,
       expectedPromptMaxLength: PROMPT_MAX,
+      aspectRatioPattern: props.aspect_ratio?.pattern ?? null,
     });
   }
   for (const model of Object.values(MODE_MODELS)) {
@@ -917,6 +1075,7 @@ export function parseArgs(argv) {
     "--aspect-ratio": "aspectRatio",
     "--aspect": "aspectRatio",
     "--quality": "quality",
+    "--framing": "framing",
     "--background": "background",
     "--output-format": "outputFormat",
     "--output-dir": "outputDir",
@@ -953,7 +1112,7 @@ export function parseArgs(argv) {
 export function usage() {
   return `HiAPI GPT Image 2.5 skill
 
-Default route (mode): without --image-url the CLI uses gpt-image-2.5-<family>/text-to-image; with --image-url it uses gpt-image-2.5-<family>/image-to-image. Family defaults to flare. --route pro uses gpt-image-2.5-<family>@pro (quality tiers). The bare IDs gpt-image-2.5-flare / gpt-image-2.5-sunburst are not accepted.
+Default route (mode): without --image-url the CLI uses gpt-image-2.5-<family>/text-to-image; with --image-url it uses gpt-image-2.5-<family>/image-to-image. Family defaults to flare. --route pro uses gpt-image-2.5-<family>@pro (priced by framing × resolution × quality). The bare IDs gpt-image-2.5-flare / gpt-image-2.5-sunburst are not accepted.
 
 Preflight: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --dry-run --estimate
 Create: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --resolution 2K
@@ -961,7 +1120,8 @@ Edit: node scripts/hiapi-gpt-image-2-5.mjs --prompt "..." --image-url <url>
 Recover: node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id <task-id>
 
 Mode route options: --family <flare|sunburst>, --image-url <url|data URI> (repeatable, max 16), --aspect-ratio <auto|1:1|3:2|2:3|4:3|3:4|16:9|9:16|21:9|27:16|16:27|9:8|8:9>, --resolution <1K|2K|4K>, --background <auto|transparent|opaque> (1K only)
-Pro route: --route pro [--family <flare|sunburst>] or --model <gpt-image-2.5-flare@pro|gpt-image-2.5-sunburst@pro>, --image-url <url>, --aspect-ratio <schema enum or pixel size>, --quality <low|medium|high|xhigh|max|auto>, --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
+Pro route: --route pro [--family <flare|sunburst>] or --model <gpt-image-2.5-flare@pro|gpt-image-2.5-sunburst@pro>, --image-url <url>, --aspect-ratio <ratio (15 values) or WxH pixel size> (default 1:1, no auto), --resolution <1K|2K|4K> (default 1K), --quality <low|medium|high|xhigh|max> (default medium, no auto), --background <auto|transparent|opaque>, --output-format <png|jpeg|webp>
+framing is computed by the server and is never sent; --framing is rejected locally.
 Prompt: --prompt <text> is required for new tasks; 1–${PROMPT_MAX} UTF-16 code units after trimming surrounding whitespace (all routes).
 Common: --model <exact ID>, --dry-run, --estimate, --no-wait, --no-save, --idempotency-key <key>, --resume-task-id <id>, --output-dir <dir>, --timeout-minutes <n>`;
 }

@@ -2,7 +2,7 @@
 
 # GPT Image 2.5 Agent Skill：HiAPI 图像生成与编辑技能
 
-通过 HiAPI 从 Codex 或 Claude Code 使用 GPT Image 2.5 Flare 或 Sunburst 生成商品图、海报封面、透明素材或编辑参考图。默认按输入自动选择按分辨率计价的模式模型：没有参考图用 `gpt-image-2.5-flare/text-to-image`，有参考图用 `gpt-image-2.5-flare/image-to-image`；`--family sunburst` 切换到 Sunburst 对应模型。`--route pro` 选择按质量计价的 `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`。不直接请求裸 ID `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`。
+通过 HiAPI 从 Codex 或 Claude Code 使用 GPT Image 2.5 Flare 或 Sunburst 生成商品图、海报封面、透明素材或编辑参考图。默认按输入自动选择按分辨率计价的模式模型：没有参考图用 `gpt-image-2.5-flare/text-to-image`，有参考图用 `gpt-image-2.5-flare/image-to-image`；`--family sunburst` 切换到 Sunburst 对应模型。`--route pro` 选择 `gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`，按构图档 × 分辨率档 × 质量档每张计价。不直接请求裸 ID `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`。
 
 已发布的技能包。可使用 Agent Skills CLI 安装；客户端运行和付费任务验收仍需单独核实。
 
@@ -22,9 +22,9 @@
 | 路线 | 模型 ID | 何时选用 | 计价依据 | 参数 |
 | --- | --- | --- | --- | --- |
 | 模式（默认） | `gpt-image-2.5-flare/text-to-image`、`gpt-image-2.5-flare/image-to-image`、`gpt-image-2.5-sunburst/text-to-image`、`gpt-image-2.5-sunburst/image-to-image` | 省略 `--model`；按是否传 `--image-url` 选模式；`--family` 默认 `flare` | 按 `resolution`（1K/2K/4K）每张计价 | 提示词 ≤ 20,000 字符，13 种比例（默认 `auto`），`resolution`（默认 `1K`），可选 `background`（仅 1K） |
-| Pro（需明确指定） | `gpt-image-2.5-flare@pro`、`gpt-image-2.5-sunburst@pro` | `--route pro`（配合 `--family`），或 `--model` 写明这两个 ID 之一 | 按 `quality` 每张计价 | 提示词 ≤ 20,000 字符，比例或像素尺寸，6 个质量值，背景，PNG/JPEG/WebP 输出 |
+| Pro（需明确指定） | `gpt-image-2.5-flare@pro`、`gpt-image-2.5-sunburst@pro` | `--route pro`（配合 `--family`），或 `--model` 写明这两个 ID 之一 | 按 `quality` × `framing` × `resolution` 每张计价 | 提示词 ≤ 20,000 字符，15 种比例或 `WxH` 像素尺寸（默认 `1:1`，无 `auto`），`resolution`（默认 `1K`），5 个质量值（默认 `medium`，无 `auto`），背景，PNG/JPEG/WebP 输出 |
 
-每个已接受的异步任务返回一张图片。模式路线传 `--quality`/`--output-format`、pro 路线传 `--resolution` 都会直接报错，不会静默丢弃。技能不对两条路线或 Flare/Sunburst 作未经验证的质量、速度或视觉排名。
+每个已接受的异步任务返回一张图片。模式路线传 `--quality`/`--output-format` 会直接报错；两条路线都不发送 `framing`——它由服务端按请求尺寸计算，请求里带上会返回 HTTP 400。技能不对两条路线或 Flare/Sunburst 作未经验证的质量、速度或视觉排名。
 
 六个模型 ID 的提示词上限统一为 20,000 字符（2026-10-13 起放宽）。CLI 先去除首尾空白，再按 JavaScript `string.length` 计算 UTF-16 码元：常用汉字计 1，补充平面 emoji 计 2。超过上限会在提交任务前被拒绝；若请求仍送达 API，会返回 `INVALID_REQUEST` 并附带 `maxLength` 说明。文生图另有 o200k token 内部上限，超限返回 `PROMPT_TOO_LONG`；图生图没有该 token 上限。下方示例的提示词均需遵守此上限。
 
@@ -73,11 +73,12 @@ node scripts/hiapi-gpt-image-2-5.mjs --family sunburst \
   --idempotency-key gpt25-edit-001
 ```
 
-质量档走 pro 路线：
+需要质量档、指定 PNG/JPEG/WebP 输出或「尺寸 + 1K/2K/4K 分辨率」组合时走 pro 路线。`@pro` 尺寸是 15 种比例之一（`1:1`、`3:2`、`2:3`、`4:3`、`3:4`、`5:4`、`4:5`、`16:9`、`9:16`、`2:1`、`1:2`、`21:9`、`9:21`、`3:1`、`1:3`）或精确 `WxH` 像素，已不再接受 `auto`。价格由长边 ÷ 短边得到的构图档（< 1.3 方幅、1.3–2 标准幅、> 2 长幅）、实际输出的分辨率档和画质档共同决定：
 
 ```bash
 node scripts/hiapi-gpt-image-2-5.mjs --route pro --family sunburst \
-  --prompt "清晨安静的高山湖泊" --quality high --output-format webp \
+  --prompt "清晨安静的高山湖泊" \
+  --aspect-ratio 16:9 --resolution 2K --quality high --output-format webp \
   --dry-run --estimate
 ```
 
@@ -94,13 +95,13 @@ node scripts/hiapi-gpt-image-2-5.mjs --resume-task-id "tk-hiapi-REPLACE_WITH_YOU
 
 **GPT Image 2.5 与 GPT Image 2 有什么关系？** 本技能只处理上表列出的 6 个 GPT Image 2.5 Flare/Sunburst 模型 ID。GPT Image 2 及其他图像模型不在本技能触发范围内，应分别查看当前模型文档。
 
-**2.5 模型怎么选？** 省略 `--model`：CLI 按是否传参考图，使用 Flare 的文生图或图生图模型。要求 Sunburst 时加 `--family sunburst`；需要质量档或指定 PNG/JPEG/WebP 输出时，用 `--route pro`（`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`）。技能不对它们作未经验证的质量、速度或视觉排名。
+**2.5 模型怎么选？** 省略 `--model`：CLI 按是否传参考图，使用 Flare 的文生图或图生图模型。要求 Sunburst 时加 `--family sunburst`；需要质量档、指定 PNG/JPEG/WebP 输出，或尺寸加分辨率组合时，用 `--route pro`（`gpt-image-2.5-flare@pro` / `gpt-image-2.5-sunburst@pro`）。技能不对它们作未经验证的质量、速度或视觉排名。
 
 **这是 API 还是 Skill？** HiAPI 提供异步 API 和模型契约；本仓库将校验、估价、幂等、轮询、恢复和下载封装成可重复的 Agent Skills 工作流。
 
 **需要 key 吗，价格怎么算？** 创建和恢复任务需要 `HIAPI_API_KEY`，本地校验和 dry-run 不需要。使用 `--estimate` 读取当前 `/api/pricing` 快照；估价不是账单保证，最终以已接受任务的当前价格为准。
 
-**透明背景怎么用？** 默认模式路线：设置 `--background transparent` 且 `--resolution 1K`（只有 1K 接受 `background`），返回带 alpha 的 PNG。pro 路线：设置 `--background transparent` 并选择 `--output-format png` 或 `webp`；JPEG 不支持透明度。
+**透明背景怎么用？** 默认模式路线：设置 `--background transparent` 且 `--resolution 1K`（只有 1K 接受 `background`），返回带 alpha 的 PNG。pro 路线：`--background` 不受 `--resolution` 限制，配合 `--output-format png` 或 `webp`；JPEG 不支持透明度。
 
 **没有 key 能安装或恢复吗？** 安装和 dry-run 是本地操作。恢复需要 key 和已有 task ID，但不会创建新任务；提交超时或使用 `--no-wait` 后，用 `--resume-task-id` 恢复。
 
